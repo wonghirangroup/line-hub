@@ -87,7 +87,7 @@
 
   if (!window.HUB_CONFIG || !window.HUB_CONFIG.liffId) { fatal('ระบบยังไม่ได้ตั้งค่า LIFF (ติดต่อผู้ดูแล)'); return; }
   liff.init({ liffId: window.HUB_CONFIG.liffId }).then(function () {
-    if (!liff.isLoggedIn()) { liff.login(); return; }
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
     idToken = liff.getIDToken();
     if (!idToken) { fatal('ไม่ได้รับสิทธิ์ยืนยันตัวตนจาก LINE กรุณาเปิดจากแอป LINE'); return; }
     return api('GET', '/api/verify/status').then(function (r) {

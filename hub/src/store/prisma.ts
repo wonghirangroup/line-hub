@@ -1,6 +1,6 @@
 // Store บน Prisma + MariaDB (production)
 import { PrismaClient, type Prisma } from '@prisma/client'
-import type { MenuArea, RichMenuDef, AppEntry, RequestStatus, RoleCode, RosterRow, Store, User, UserRoleEntry, UserStatus, VerificationRequest } from '../types.js'
+import type { AuditEntry, MenuArea, RichMenuDef, AppEntry, RequestStatus, RoleCode, RosterRow, Store, User, UserRoleEntry, UserStatus, VerificationRequest } from '../types.js'
 
 type UserRow = Prisma.UserGetPayload<object>
 type ReqRow = Prisma.VerificationRequestGetPayload<object>
@@ -140,6 +140,18 @@ export class PrismaStore implements Store {
   }
   async markRichMenusPublished(keys: string[]) {
     await this.db.richMenu.updateMany({ where: { menu_key: { in: keys } }, data: { dirty: false, published_at: new Date() } })
+  }
+
+  async addAudit(e: { actor: string; action: string; target?: string | null; detail?: unknown }) {
+    await this.db.auditLog.create({ data: { actor: e.actor.slice(0, 190), action: e.action.slice(0, 190), target: e.target?.slice(0, 190) ?? null, detail: (e.detail ?? undefined) as Prisma.InputJsonValue | undefined } })
+  }
+  async listAudit(opts: { limit: number; actionPrefix?: string }): Promise<AuditEntry[]> {
+    const rows = await this.db.auditLog.findMany({ where: opts.actionPrefix ? { action: { startsWith: opts.actionPrefix } } : {}, orderBy: { created_at: 'desc' }, take: opts.limit })
+    return rows.map(r => ({ id: r.id, actor: r.actor, action: r.action, target: r.target, detail: r.detail, createdAt: r.created_at }))
+  }
+  async attemptsSince(since: Date) {
+    const rows = await this.db.verificationAttempt.findMany({ where: { created_at: { gte: since } }, select: { success: true, created_at: true }, take: 20000 })
+    return rows.map(r => ({ success: r.success, at: r.created_at }))
   }
 
   async listApps() { return (await this.db.app.findMany({ orderBy: { sort_order: 'asc' } })).map(toApp) }

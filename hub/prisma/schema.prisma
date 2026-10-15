@@ -141,3 +141,17 @@ model RichMenu {
 
   @@map("rich_menus")
 }
+
+// บันทึกกิจกรรม: ใครทำอะไรกับอะไร (ออกรหัส อนุมัติ เปลี่ยนบทบาท เผยแพร่เมนู ฯลฯ) ไว้ตรวจสอบย้อนหลัง
+model AuditLog {
+  id         String   @id @default(uuid())
+  actor      String
+  action     String
+  target     String?
+  detail     Json?
+  created_at DateTime @default(now())
+
+  @@index([created_at])
+  @@index([action])
+  @@map("audit_log")
+}

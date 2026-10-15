@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify'
 import { z, ZodError } from 'zod'
 import { MenuBodySchema, type MenuService } from './menu-service.js'
+import type { MonitorService } from './monitor.js'
 import { normalizeCode, normalizePhone, type HubService } from './service.js'
 import { HttpError, ROLE_CODES, type LineApi, type LineIdentity, type RoleCode, type RosterRow, type Store, type User } from './types.js'
 
@@ -13,6 +14,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 export interface AppDeps {
   service: HubService
   menus: MenuService
+  monitor: MonitorService
   store: Store
   line: LineApi
   channelSecret: string
@@ -104,6 +106,7 @@ export function buildApp(d: AppDeps): FastifyInstance {
   const verifyHtml = page('verify.html')
   const adminHtml = page('admin.html')
   const menuHtml = page('menu.html')
+  const dashHtml = page('dashboard.html')
   const sendPage = (reply: FastifyReply, html: string) => reply
     .header('Content-Type', 'text/html; charset=utf-8')
     .header('Cache-Control', 'no-store')
@@ -114,6 +117,10 @@ export function buildApp(d: AppDeps): FastifyInstance {
   // หน้าจัดการสำหรับ superadmin — เปิดผ่าน LIFF เดียวกัน: https://liff.line.me/<LIFF ID>/admin (LINE ต่อ path ท้าย endpoint)
   app.get('/verify/admin', async (_req, reply) => sendPage(reply, adminHtml))
   app.get('/verify/admin/menu', async (_req, reply) => sendPage(reply, menuHtml))
+  app.get('/verify/admin/dashboard', async (_req, reply) => sendPage(reply, dashHtml))
+  // ทางลัดที่จำง่าย: เปิดผ่านเว็บปกติได้ (ล็อกอินด้วย LINE) — ไปแดชบอร์ด
+  app.get('/admin', async (_req, reply) => reply.redirect('/verify/admin/dashboard'))
+  app.get('/', async (_req, reply) => reply.redirect('/verify/admin/dashboard'))
   app.get('/verify/config.js', async (_req, reply) => {
     reply.header('Content-Type', 'application/javascript; charset=utf-8').send(`window.HUB_CONFIG = ${JSON.stringify({ liffId: d.verifyLiffId })};`)
   })
@@ -169,15 +176,24 @@ export function buildApp(d: AppDeps): FastifyInstance {
         })).min(1).max(2000),
       }).parse(req.body)
       const rows: RosterRow[] = body.users.map(u => ({ employeeCode: normalizeCode(u.employee_code), displayName: u.display_name, phone: normalizePhone(u.phone), roles: u.roles }))
-      return ok(await d.store.upsertRoster(rows))
+      const res = await d.store.upsertRoster(rows)
+      await d.service.audit(adminName(req), 'users.import', null, res)
+      return ok(res)
     })
 
     s.put('/api/admin/users/:id/roles', async req => {
       const { id } = z.object({ id: z.string() }).parse(req.params)
       const body = z.object({ roles: RoleList }).parse(req.body)
-      return ok(await d.service.setRoles(id, body.roles.map(roleCode => ({ roleCode, appId: null }))))
+      const res = await d.service.setRoles(id, body.roles.map(roleCode => ({ roleCode, appId: null })))
+      await d.service.audit(adminName(req), 'user.roles', id, { roles: body.roles })
+      return ok(res)
     })
 
+    s.get('/api/admin/monitor', async () => ok(await d.monitor.snapshot()))
+    s.get('/api/admin/audit', async req => {
+      const q = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50), prefix: z.string().max(40).optional() }).parse(req.query)
+      return ok(await d.store.listAudit({ limit: q.limit, actionPrefix: q.prefix }))
+    })
     s.get('/api/admin/whoami', async req => ok({ actor: adminName(req) }))
 
     // superadmin ออก/ออกใหม่รหัสผ่านเปิดใช้งาน (สุ่มให้ แสดงครั้งเดียว ใช้ครั้งเดียว มีวันหมดอายุ)
@@ -185,24 +201,39 @@ export function buildApp(d: AppDeps): FastifyInstance {
       const { id } = z.object({ id: z.string() }).parse(req.params)
       const b = z.object({ hours: z.number().int().min(1).max(720).default(72) }).parse(req.body ?? {})
       const r = await d.service.issueCode(id, adminName(req), b.hours)
+      await d.service.audit(adminName(req), 'code.issue', r.employeeCode, { hours: b.hours })
       return ok({ employee_code: r.employeeCode, display_name: r.displayName, code: r.code, expires_at: r.expiresAt })
     })
     s.post('/api/admin/activation-codes/issue-all', async req => {
       const b = z.object({ hours: z.number().int().min(1).max(720).default(72) }).parse(req.body ?? {})
       const list = await d.service.issueAll(adminName(req), b.hours)
+      await d.service.audit(adminName(req), 'code.issue-all', null, { count: list.length, hours: b.hours })
       return ok(list.map(r => ({ employee_code: r.employeeCode, display_name: r.displayName, phone: r.phone, code: r.code, expires_at: r.expiresAt })))
     })
 
-    s.post('/api/admin/users/:id/unlink', async req => ok(await d.service.unlink(z.object({ id: z.string() }).parse(req.params).id)))
+    s.post('/api/admin/users/:id/unlink', async req => {
+      const { id } = z.object({ id: z.string() }).parse(req.params)
+      const res = await d.service.unlink(id)
+      await d.service.audit(adminName(req), 'user.unlink', id, null)
+      return ok(res)
+    })
 
     s.get('/api/admin/verification-requests', async req => {
       const q = z.object({ status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional() }).parse(req.query)
       return ok(await d.store.listRequests(q.status))
     })
-    s.post('/api/admin/verification-requests/:id/approve', async req =>
-      ok(await d.service.approve(z.object({ id: z.string() }).parse(req.params).id, adminName(req))))
-    s.post('/api/admin/verification-requests/:id/reject', async req =>
-      ok(await d.service.reject(z.object({ id: z.string() }).parse(req.params).id, adminName(req))))
+    s.post('/api/admin/verification-requests/:id/approve', async req => {
+      const { id } = z.object({ id: z.string() }).parse(req.params)
+      const res = await d.service.approve(id, adminName(req))
+      await d.service.audit(adminName(req), 'request.approve', res.user.employeeCode, null)
+      return ok(res)
+    })
+    s.post('/api/admin/verification-requests/:id/reject', async req => {
+      const { id } = z.object({ id: z.string() }).parse(req.params)
+      const res = await d.service.reject(id, adminName(req))
+      await d.service.audit(adminName(req), 'request.reject', id, null)
+      return ok(res)
+    })
 
     s.get('/api/admin/apps', async () => ok(await d.store.listApps()))
     // เพิ่ม/แก้ระบบที่จะโชว์เป็นการ์ดใน ALL APP (ปิดใช้งานด้วย active=false แทนการลบ)
@@ -222,6 +253,7 @@ export function buildApp(d: AppDeps): FastifyInstance {
         if (v.type === 'liff' && !v.liff_id) ctx.addIssue({ code: 'custom', path: ['liff_id'], message: 'ระบบแบบ LIFF ต้องมี LIFF ID' })
         if (v.type === 'uri' && !v.url) ctx.addIssue({ code: 'custom', path: ['url'], message: 'ระบบแบบลิงก์ต้องมี URL' })
       }).parse(req.body)
+      await d.service.audit(adminName(req), 'app.save', code, { name: b.name, active: b.active, role: b.required_role ?? null })
       return ok(await d.store.upsertApp({ code, name: b.name, type: b.type, url: b.type === 'uri' ? (b.url ?? null) : null, liffId: b.type === 'liff' ? (b.liff_id ?? null) : null, icon: b.icon ?? null, requiredRole: b.required_role ?? null, sortOrder: b.sort_order, active: b.active }))
     })
 
@@ -230,7 +262,9 @@ export function buildApp(d: AppDeps): FastifyInstance {
     s.get('/api/admin/richmenus/:key', async req => ok(await d.menus.get(z.object({ key: z.string() }).parse(req.params).key)))
     s.put('/api/admin/richmenus/:key', async req => {
       const { key } = z.object({ key: z.string() }).parse(req.params)
-      return ok(await d.menus.save(key, MenuBodySchema.parse(req.body), adminName(req)))
+      const res = await d.menus.save(key, MenuBodySchema.parse(req.body), adminName(req))
+      await d.service.audit(adminName(req), 'menu.save', key, { areas: res.areas.length, size: res.width + "x" + res.height })
+      return ok(res)
     })
     s.get('/api/admin/richmenus/:key/image', async (req, reply) => {
       const { key } = z.object({ key: z.string() }).parse(req.params)
@@ -242,6 +276,7 @@ export function buildApp(d: AppDeps): FastifyInstance {
       const { key } = z.object({ key: z.string() }).parse(req.params)
       if (!Buffer.isBuffer(req.body)) throw new HttpError(415, 'ส่งภาพเป็น image/jpeg หรือ image/png', 'BAD_CONTENT_TYPE')
       await d.menus.saveImage(key, req.body, adminName(req))
+      await d.service.audit(adminName(req), 'menu.image', key, { bytes: req.body.length })
       return ok(await d.menus.get(key))
     })
     // นำเข้าชุดเริ่มต้นจากไฟล์ตั้งค่า (สคริปต์ตั้งต้น) — ไม่ทับเมนูที่มีแล้ว เว้นแต่ overwrite=true
@@ -250,14 +285,21 @@ export function buildApp(d: AppDeps): FastifyInstance {
         overwrite: z.boolean().default(false),
         menus: z.array(z.object({ key: z.string(), body: MenuBodySchema, image_base64: z.string().optional() })).min(1).max(20),
       }).parse(req.body)
+      await d.service.audit(adminName(req), 'menu.import', null, { count: b.menus.length, overwrite: b.overwrite })
       return ok(await d.menus.importMenus(b.menus.map(m => ({ key: m.key, body: m.body, image: m.image_base64 ? Buffer.from(m.image_base64, 'base64') : undefined })), adminName(req), b.overwrite))
     })
     s.post('/api/admin/richmenus/publish', async req => {
       const b = z.object({ set_default_guest: z.boolean().default(false) }).parse(req.body ?? {})
-      return ok(await d.menus.publish(adminName(req), { setDefaultGuest: b.set_default_guest }))
+      const res = await d.menus.publish(adminName(req), { setDefaultGuest: b.set_default_guest })
+      await d.service.audit(adminName(req), 'menu.publish', null, res)
+      return ok(res)
     })
 
-    s.post('/api/admin/relink-all', async () => ok(await d.service.relinkAll()))
+    s.post('/api/admin/relink-all', async req => {
+      const res = await d.service.relinkAll()
+      await d.service.audit(adminName(req), 'menus.relink-all', null, { total: res.total, ok: res.ok, failed: res.failed })
+      return ok(res)
+    })
   })
 
   return app

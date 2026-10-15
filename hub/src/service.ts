@@ -71,6 +71,11 @@ export class HubService {
     this.maxCodeFailures = o.maxCodeFailures ?? 5
   }
 
+  /** บันทึกกิจกรรม — ห้ามทำให้งานหลักล้มเหลวถ้าบันทึกไม่สำเร็จ (ไม่เก็บรหัสผ่าน/เบอร์/LINE userId) */
+  async audit(actor: string, action: string, target?: string | null, detail?: unknown) {
+    try { await this.store.addAudit({ actor, action, target, detail }) } catch { /* ignore */ }
+  }
+
   // ── superadmin ออกรหัสผ่านเปิดใช้งาน ─────────────────────────────────
   /** ออก/ออกใหม่ — คืนรหัสแบบตัวอักษรจริง "ครั้งเดียว" (ในฐานข้อมูลเก็บเฉพาะแฮช) */
   async issueCode(userId: string, issuedBy: string, hours = 72) {
@@ -116,11 +121,13 @@ export class HubService {
       await this.store.recordAttempt(input.lineUserId, false)
       // นับความพยายามผิดที่ตัวพนักงานด้วย — ครบ 5 ครั้งรหัสถูกล็อก ต้องให้ superadmin ออกรหัสใหม่
       if (user?.activationHash) await this.store.updateUser(user.id, { activationFailed: user.activationFailed + 1 })
+      await this.audit('verify', 'verify.fail', input.employeeCode.slice(0, 50), { lockedNow: !!user && user.activationFailed + 1 >= this.maxCodeFailures })
       throw new HttpError(422, 'ข้อมูลไม่ถูกต้อง หรือรหัสผ่านหมดอายุ/ถูกล็อก กรุณาตรวจสอบอีกครั้ง หรือติดต่อผู้ดูแลระบบ (superadmin) เพื่อขอรหัสใหม่', 'VERIFY_MISMATCH')
     }
     await this.store.recordAttempt(input.lineUserId, true)
 
     const issuedBy = user.activationIssuedBy ?? 'unknown'
+    await this.audit(user.employeeCode, 'verify.success', user.employeeCode, { issuedBy, needsApproval: this.requireApproval })
     // รหัสใช้ได้ครั้งเดียว — ใช้แล้วลบทิ้งทันที
     await this.store.updateUser(user.id, { activationHash: null, activationExpiresAt: null, activationFailed: 0 })
 

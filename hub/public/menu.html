@@ -55,13 +55,24 @@
   .tpl .pv i { position:absolute; border:1px solid #b9c0cc; background:#eceef3; box-sizing:border-box; }
   .tpl .bar2 { height:10px; background:#f7f7f9; border-top:1px solid #d5d9e2; font-size:7px; color:#8a93a6; text-align:center; line-height:10px; }
   .modal .box.wide { max-width:560px; max-height:92vh; overflow:auto; }
+  .topnav { position:sticky; top:0; z-index:6; background:#fff; border-bottom:1.5px solid #d8e4f8; display:flex; align-items:center; gap:4px; padding:8px 12px; flex-wrap:wrap; margin:-12px -10px 12px; }
+  .topnav .brand { font-weight:800; color:#0B1B4D; margin-right:10px; }
+  .topnav a.nav { text-decoration:none; color:#5b6b8c; font-weight:700; font-size:.9rem; padding:7px 12px; border-radius:10px; }
+  .topnav a.nav.on { background:#e6f0ff; color:#1D6FE0; }
   [hidden] { display:none !important; }
 </style>
 </head>
 <body>
+<nav class="topnav" aria-label="เมนูหลัก">
+  <span class="brand">🧩 LINE Hub</span>
+  <a class="nav" href="/verify/admin/dashboard">ภาพรวม</a>
+  <a class="nav" href="/verify/admin">ผู้ใช้และระบบ</a>
+  <a class="nav on" href="/verify/admin/menu">เมนู LINE</a>
+  <a class="nav" href="/verify/admin/dashboard#activity">กิจกรรม</a>
+</nav>
 <main>
   <h1>แก้ไขเมนู LINE</h1>
-  <div class="sub"><a href="/verify/admin">← กลับหน้าจัดการผู้ใช้</a> · <span id="who">กำลังตรวจสอบสิทธิ์…</span></div>
+  <div class="sub"><span id="who">กำลังตรวจสอบสิทธิ์…</span></div>
   <div class="card" id="denied" hidden><h2>เข้าไม่ได้</h2><p id="deniedText"></p></div>
 
   <div id="app" hidden>
@@ -497,7 +508,7 @@
   function deny(t) { $('who').textContent = ''; $('denied').hidden = false; $('deniedText').textContent = t; }
   if (!window.HUB_CONFIG || !window.HUB_CONFIG.liffId) { deny('ระบบยังไม่ได้ตั้งค่า LIFF'); return; }
   liff.init({ liffId: window.HUB_CONFIG.liffId }).then(function () {
-    if (!liff.isLoggedIn()) { liff.login(); return; }
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
     idToken = liff.getIDToken();
     if (!idToken) { deny('ไม่ได้รับสิทธิ์จาก LINE กรุณาเปิดจากแอป LINE'); return; }
     return api('GET', '/api/admin/whoami').then(function (r) {

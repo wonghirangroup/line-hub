@@ -67,6 +67,8 @@ export interface RichMenuDef {
   updatedBy: string | null
 }
 
+export interface AuditEntry { id: string; actor: string; action: string; target: string | null; detail: unknown; createdAt: Date }
+
 export interface RosterRow { employeeCode: string; displayName: string; phone: string; roles?: RoleCode[] }
 
 export interface Store {
@@ -91,6 +93,10 @@ export interface Store {
   // attempts (กันเดารหัสพนักงาน/เบอร์)
   recordAttempt(lineUserId: string, success: boolean): Promise<void>
   countFailedAttempts(lineUserId: string, since: Date): Promise<number>
+  // audit + สถิติ
+  addAudit(e: { actor: string; action: string; target?: string | null; detail?: unknown }): Promise<void>
+  listAudit(opts: { limit: number; actionPrefix?: string }): Promise<AuditEntry[]>
+  attemptsSince(since: Date): Promise<{ success: boolean; at: Date }[]>
   // rich menus
   listRichMenus(): Promise<RichMenuDef[]>
   getRichMenu(key: string): Promise<RichMenuDef | null>
@@ -111,6 +117,9 @@ export interface LineApi {
   getAliasMenuId(alias: string): Promise<string | null>
   linkMenu(lineUserId: string, richMenuId: string): Promise<void>
   unlinkMenu(lineUserId: string): Promise<void>
+  // ข้อมูลสถานะ OA (ใช้ในหน้า monitor)
+  botInfo(): Promise<{ displayName: string; basicId: string }>
+  webhookEndpoint(): Promise<{ endpoint: string; active: boolean }>
   // จัดการตัวเมนูใน OA (ใช้ตอนเผยแพร่)
   listMenus(): Promise<{ richMenuId: string; name: string }[]>
   createMenu(body: unknown): Promise<string>

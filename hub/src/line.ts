@@ -46,6 +46,14 @@ export class LineClient implements LineApi {
   async linkMenu(lineUserId: string, richMenuId: string) {
     await this.call('POST', `/v2/bot/user/${encodeURIComponent(lineUserId)}/richmenu/${encodeURIComponent(richMenuId)}`)
   }
+  async botInfo() {
+    const r = (await this.call('GET', '/v2/bot/info')) as { displayName?: string; basicId?: string }
+    return { displayName: r.displayName ?? '', basicId: r.basicId ?? '' }
+  }
+  async webhookEndpoint() {
+    const r = (await this.call('GET', '/v2/bot/channel/webhook/endpoint')) as { endpoint?: string; active?: boolean }
+    return { endpoint: r.endpoint ?? '', active: !!r.active }
+  }
   async listMenus() {
     const r = (await this.call('GET', '/v2/bot/richmenu/list')) as { richmenus?: { richMenuId: string; name: string }[] }
     return (r.richmenus ?? []).map(m => ({ richMenuId: m.richMenuId, name: m.name }))

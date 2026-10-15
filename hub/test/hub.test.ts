@@ -4,6 +4,7 @@ import { buildApp } from '../src/app.js'
 import { loadMenuSets } from '../src/config.js'
 import { imageInfo } from '../src/image.js'
 import { MenuService } from '../src/menu-service.js'
+import { MonitorService } from '../src/monitor.js'
 import { canAccess, checkActivation, generateActivationCode, hashActivation, HubService, normalizePhone } from '../src/service.js'
 import { MemoryStore } from '../src/store/memory.js'
 import { HttpError, type LineApi, type LineIdentity } from '../src/types.js'
@@ -23,13 +24,20 @@ class FakeLine implements LineApi {
   async getAliasMenuId(alias: string) { return this.aliases.has(alias) ? `menu:${alias}` : null }
   async linkMenu(uid: string, menuId: string) { if (this.failLink) throw new Error('LINE down'); this.links.set(uid, menuId) }
   async unlinkMenu(uid: string) { this.links.delete(uid) }
+  // ── ข้อมูลสถานะ OA ──
+  bot = { displayName: 'SJ-Webapp/Demo', basicId: '@test' }
+  hook = { endpoint: 'https://hub.example/webhook', active: true }
+  failInfo = false
+  infoCalls = 0
+  async botInfo() { this.infoCalls++; if (this.failInfo) throw new Error('LINE GET /v2/bot/info → 401 Bearer abc.def'); return this.bot }
+  async webhookEndpoint() { this.infoCalls++; return this.hook }
   // ── จำลองตัวเมนูใน OA ──
   oa = new Map<string, { name: string; body: any; image?: Buffer }>()
   aliasMap = new Map<string, string>()
   defaultId: string | null = null
   failUpload = false
   private n = 0
-  async listMenus() { return [...this.oa].map(([richMenuId, m]) => ({ richMenuId, name: m.name })) }
+  async listMenus() { this.infoCalls++; return [...this.oa].map(([richMenuId, m]) => ({ richMenuId, name: m.name })) }
   async createMenu(body: any) { const id = 'rm' + ++this.n; this.oa.set(id, { name: body.name, body }); return id }
   async uploadMenuImage(id: string, data: Buffer) { if (this.failUpload) throw new Error('upload failed'); this.oa.get(id)!.image = data }
   async deleteMenu(id: string) { this.oa.delete(id) }
@@ -64,8 +72,9 @@ function setup(opts: { requireApproval?: boolean } = {}) {
   const menu = loadMenuSets(new URL('../../richmenu.config.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
   const service = new HubService(store, line, menu, { now: () => new Date(clock.t), requireApproval: opts.requireApproval })
   const menus = new MenuService(store, line, menu, service)
-  const app = buildApp({ service, menus, store, line, channelSecret: SECRET, adminToken: ADMIN, verifyLiffId: '2010195603-test', corsOrigins: ['https://allapp.example'] })
-  return { store, line, service, menus, app, clock }
+  const monitor = new MonitorService(store, line, { storeKind: 'memory', version: 'test', startedAt: new Date(clock.t), now: () => new Date(clock.t) })
+  const app = buildApp({ service, menus, monitor, store, line, channelSecret: SECRET, adminToken: ADMIN, verifyLiffId: '2010195603-test', corsOrigins: ['https://allapp.example'] })
+  return { store, line, service, menus, monitor, app, clock }
 }
 type T = ReturnType<typeof setup>
 
@@ -588,6 +597,127 @@ describe('ตัวแก้ Rich Menu', () => {
     const p = await t.app.inject({ method: 'GET', url: '/verify/admin/menu' })
     expect(p.statusCode).toBe(200)
     expect(p.headers['x-frame-options']).toBe('DENY')
+  })
+})
+
+describe('Monitor และบันทึกกิจกรรม', () => {
+  const snap = async (t: T) => (await t.app.inject({ method: 'GET', url: '/api/admin/monitor', headers: adm })).json().data
+  const audit = async (t: T, q = '') => (await t.app.inject({ method: 'GET', url: '/api/admin/audit' + q, headers: adm })).json().data as { actor: string; action: string; target: string | null; detail: unknown }[]
+
+  it('สรุปผู้ใช้/บทบาท/รหัส/คำขอ ถูกต้อง และแจ้งเตือนตามสถานการณ์', async () => {
+    const t = setup({ requireApproval: true })
+    await importRoster(t)
+    await issue(t, 'E001')                          // มีรหัสที่ยังไม่ใช้ 1 คน
+    await verify(t, 'U2', 'E002', '0899990000', 'AAAA-AAAA') // ไม่มีรหัสของ E002 → ล้มเหลว 1
+    const s0 = await snap(t)
+    expect(s0.users).toEqual({ total: 3, active: 0, invited: 3, inactive: 0 })
+    expect(s0.roles).toEqual({ staff: 1, admin: 1, superadmin: 1 })
+    expect(s0.codes).toMatchObject({ outstanding: 1, expiringSoon: 0, locked: 0, invitedWithoutCode: 2 })
+    expect(s0.attempts.last24h).toEqual({ ok: 0, fail: 1 })
+    expect(s0.attempts.days).toHaveLength(7)
+    expect(s0.attempts.days[6]).toMatchObject({ date: '2026-10-15', fail: 1 })
+    expect(s0.db.ok).toBe(true)
+    expect(s0.line).toMatchObject({ ok: true, bot: { displayName: 'SJ-Webapp/Demo' }, webhook: { active: true } })
+    expect(s0.alerts.map((a: { code: string }) => a.code)).toContain('no-code')
+
+    const pw = await issue(t, 'E002')
+    await verify(t, 'U2', 'E002', '0899990000', pw)  // ต้องอนุมัติ → pending
+    const s1 = await snap(t)
+    expect(s1.requests.pending).toBe(1)
+    expect(s1.attempts.last24h.ok).toBe(1)
+    expect(s1.alerts.map((a: { code: string }) => a.code)).toContain('pending')
+  })
+
+  it('รหัสที่จะหมดอายุใน 24 ชม. / ถูกล็อก / หมดอายุแล้ว นับแยกกัน', async () => {
+    const t = setup()
+    await importRoster(t)
+    await issue(t, 'E001', 12)   // หมดใน 12 ชม.
+    await issue(t, 'E002', 72)
+    await issue(t, 'S001', 72)
+    for (let i = 0; i < 5; i++) await verify(t, `X${i}`, 'S001', '0877777777', 'AAAA-AAAA') // ล็อก S001
+    let s = await snap(t)
+    expect(s.codes).toMatchObject({ outstanding: 2, expiringSoon: 1, locked: 1 })
+    expect(s.alerts.map((a: { code: string }) => a.code)).toEqual(expect.arrayContaining(['locked', 'expiring']))
+    t.clock.t += 80 * 3600 * 1000
+    s = await snap(t)
+    expect(s.codes).toMatchObject({ outstanding: 0, expired: 3 })
+  })
+
+  it('สถานะเมนู: ยังไม่เผยแพร่/แก้ไขแล้ว และเตือนเมื่อไม่มีเมนูของ Hub ใน OA', async () => {
+    const t = setup()
+    await t.app.inject({ method: 'POST', url: '/api/admin/richmenus/import', headers: adm, payload: { menus: [{ key: 'guest', body: { width: 2500, height: 843, chat_bar_text: 'เมนู', areas: [{ x: 0, y: 0, width: 2500, height: 843, label: 'a', action: { type: 'message', text: 'x' } }] }, image_base64: Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]), Buffer.from('IHDR'), Buffer.from([0, 0, 9, 196, 0, 0, 3, 75]), Buffer.alloc(30)]).toString('base64') }] } })
+    const s = await snap(t)
+    expect(s.menus).toMatchObject({ total: 1, withImage: 1, dirty: 1, lastPublishedAt: null })
+    const codes = s.alerts.map((a: { code: string }) => a.code)
+    expect(codes).toEqual(expect.arrayContaining(['menu-dirty', 'menu-missing']))
+  })
+
+  it('Webhook ยังไม่เปิด → เตือน · LINE ล่ม → รายงานแต่ไม่ล้ม · ใช้ cache ไม่ยิง LINE ซ้ำถี่ๆ', async () => {
+    const t = setup()
+    t.line.hook = { endpoint: 'https://hub.example/webhook', active: false }
+    let s = await snap(t)
+    expect(s.alerts.map((a: { code: string }) => a.code)).toContain('webhook')
+    const calls = t.line.infoCalls
+    await snap(t); await snap(t)
+    expect(t.line.infoCalls).toBe(calls) // อยู่ใน cache
+
+    const t2 = setup()
+    t2.line.failInfo = true
+    s = await snap(t2)
+    expect(s.line.ok).toBe(false)
+    expect(s.line.errors.length).toBeGreaterThan(0)
+    expect(s.alerts.find((a: { code: string }) => a.code === 'line').level).toBe('error')
+    expect(JSON.stringify(s)).not.toContain('abc.def') // โทเค็นในข้อความ error ต้องถูกปิดบัง
+    expect(JSON.stringify(s)).toContain('access token ไม่ถูกต้อง') // แปลเป็นข้อความอ่านง่าย ไม่โชว์ JSON ดิบจาก LINE
+  })
+
+  it('ฐานข้อมูลอ่านไม่ได้ → db.ok=false และมี alert error (ไม่ล้ม)', async () => {
+    const t = setup()
+    t.store.listUsers = async () => { throw new Error('connection refused') }
+    const s = await snap(t)
+    expect(s.db.ok).toBe(false)
+    expect(s.alerts[0]).toMatchObject({ level: 'error', code: 'db' })
+  })
+
+  it('บันทึกกิจกรรม: ออกรหัส/ยืนยัน/อนุมัติ/บทบาท/ยกเลิกผูก/เมนู/ระบบ — ไม่มีรหัสผ่าน เบอร์ หรือ LINE userId', async () => {
+    const t = setup()
+    await importRoster(t)
+    const u = (await t.store.findUserByCode('E001'))!
+    const iss = await t.app.inject({ method: 'POST', url: `/api/admin/users/${u.id}/activation-code`, headers: { ...adm, 'x-admin-name': 'net' }, payload: { hours: 24 } })
+    const pw = iss.json().data.code as string
+    await verify(t, 'ULINE-SECRET-1', 'E001', '0812345678', 'AAAA-AAAA')       // ผิด
+    await verify(t, 'ULINE-SECRET-1', 'E001', '0812345678', pw)                // ถูก
+    await t.app.inject({ method: 'PUT', url: `/api/admin/users/${u.id}/roles`, headers: adm, payload: { roles: ['staff', 'admin'] } })
+    await t.app.inject({ method: 'PUT', url: '/api/admin/apps/x-app', headers: adm, payload: { name: 'X', type: 'uri', url: 'https://x.example' } })
+    await t.app.inject({ method: 'POST', url: `/api/admin/users/${u.id}/unlink`, headers: adm })
+
+    const rows = await audit(t)
+    const actions = rows.map(r => r.action)
+    expect(actions).toEqual(expect.arrayContaining(['users.import', 'code.issue', 'verify.fail', 'verify.success', 'user.roles', 'app.save', 'user.unlink']))
+    expect(rows.find(r => r.action === 'code.issue')).toMatchObject({ actor: 'token:net', target: 'E001' })
+    const all = JSON.stringify(rows)
+    expect(all).not.toContain(pw)
+    expect(all).not.toContain('AAAA-AAAA')
+    expect(all).not.toContain('0812345678')
+    expect(all).not.toContain('ULINE-SECRET-1')
+    expect((await audit(t, '?prefix=verify.')).every(r => r.action.startsWith('verify.'))).toBe(true)
+    expect((await audit(t, '?limit=2')).length).toBe(2)
+  })
+
+  it('/admin และ / ไปแดชบอร์ด · หน้าแดชบอร์ดส่ง HTML · เฉพาะ superadmin เรียก monitor/audit ได้', async () => {
+    const t = setup()
+    const a = await t.app.inject({ method: 'GET', url: '/admin' })
+    expect(a.statusCode).toBe(302)
+    expect(a.headers.location).toBe('/verify/admin/dashboard')
+    expect((await t.app.inject({ method: 'GET', url: '/' })).headers.location).toBe('/verify/admin/dashboard')
+    const p = await t.app.inject({ method: 'GET', url: '/verify/admin/dashboard' })
+    expect(p.statusCode).toBe(200)
+    expect(p.headers['x-frame-options']).toBe('DENY')
+    await importRoster(t)
+    await onboard(t, 'U2', 'E002', '0899990000')
+    expect((await t.app.inject({ method: 'GET', url: '/api/admin/monitor', headers: tok('U2') })).statusCode).toBe(403)
+    expect((await t.app.inject({ method: 'GET', url: '/api/admin/audit', headers: tok('U2') })).statusCode).toBe(403)
+    expect((await t.app.inject({ method: 'GET', url: '/api/admin/monitor' })).statusCode).toBe(401)
   })
 })
 

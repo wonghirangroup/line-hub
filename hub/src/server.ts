@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { buildApp } from './app.js'
 import { loadEnv, loadMenuSets } from './config.js'
 import { LineClient } from './line.js'
+import { readFileSync } from 'node:fs'
 import { MenuService } from './menu-service.js'
+import { MonitorService } from './monitor.js'
 import { HubService } from './service.js'
 import { MemoryStore } from './store/memory.js'
 import type { Store } from './types.js'
@@ -32,8 +34,10 @@ if (env.HUB_STORE === 'memory') {
 const line = new LineClient({ accessToken: env.LINE_CHANNEL_ACCESS_TOKEN, loginChannelId: env.HUB_LINE_LOGIN_CHANNEL_ID })
 const service = new HubService(store, line, menu, { requireApproval: env.HUB_REQUIRE_APPROVAL })
 const menus = new MenuService(store, line, menu, service)
+const version = (JSON.parse(readFileSync(path.resolve(HERE, '..', 'package.json'), 'utf8')) as { version?: string }).version ?? 'dev'
+const monitor = new MonitorService(store, line, { storeKind: env.HUB_STORE, version, startedAt: new Date() })
 const app = buildApp({
-  service, menus, store, line,
+  service, menus, monitor, store, line,
   channelSecret: env.LINE_CHANNEL_SECRET,
   adminToken: env.HUB_ADMIN_TOKEN,
   verifyLiffId: env.HUB_VERIFY_LIFF_ID,

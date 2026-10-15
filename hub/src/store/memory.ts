@@ -1,6 +1,6 @@
 // Store ในหน่วยความจำ — ใช้ในเทสต์ และรัน Hub ทดลองในเครื่องโดยไม่ต้องมี DB (HUB_STORE=memory)
 import { randomUUID } from 'node:crypto'
-import type { MenuArea, RichMenuDef, AppEntry, RequestStatus, RosterRow, Store, User, UserRoleEntry, UserStatus, VerificationRequest } from '../types.js'
+import type { AuditEntry, MenuArea, RichMenuDef, AppEntry, RequestStatus, RosterRow, Store, User, UserRoleEntry, UserStatus, VerificationRequest } from '../types.js'
 
 export class MemoryStore implements Store {
   users = new Map<string, User>()
@@ -90,6 +90,15 @@ export class MemoryStore implements Store {
   async markRichMenusPublished(keys: string[]) {
     for (const k of keys) { const m = this.menus.get(k); if (m) Object.assign(m.def, { dirty: false, publishedAt: this.now() }) }
   }
+
+  audit: AuditEntry[] = []
+  async addAudit(e: { actor: string; action: string; target?: string | null; detail?: unknown }) {
+    this.audit.push({ id: String(this.audit.length + 1), actor: e.actor, action: e.action, target: e.target ?? null, detail: e.detail ?? null, createdAt: this.now() })
+  }
+  async listAudit(opts: { limit: number; actionPrefix?: string }) {
+    return this.audit.filter(a => !opts.actionPrefix || a.action.startsWith(opts.actionPrefix)).slice().reverse().slice(0, opts.limit)
+  }
+  async attemptsSince(since: Date) { return this.attempts.filter(a => a.at >= since).map(a => ({ success: a.success, at: a.at })) }
 
   async listApps() { return [...this.apps.values()].sort((a, b) => a.sortOrder - b.sortOrder) }
   async upsertApp(app: Omit<AppEntry, 'id'>) {

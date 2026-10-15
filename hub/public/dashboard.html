@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LINE Hub — ภาพรวมระบบ</title>
+<style>
+  :root {
+    --bg:#f3f7fd; --surface:#fff; --surface2:#f6f9ff; --ink:#1b2745; --muted:#5b6b8c; --line:#d9e4f6;
+    --navy:#0B1B4D; --blue:#1D6FE0; --ok:#0f9d6b; --warn:#b45309; --err:#c0272d;
+    --ok-bg:#dff7ec; --warn-bg:#fff1d4; --err-bg:#fdecec; --info-bg:#e6f0ff; --shadow:0 6px 20px rgba(36,75,131,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#0d1426; --surface:#141d33; --surface2:#19243e; --ink:#e6ecfa; --muted:#9db0d3; --line:#26335a;
+      --navy:#cfe0ff; --blue:#6aa3ff; --ok:#46d39a; --warn:#f3b25c; --err:#ff8b90;
+      --ok-bg:#12372c; --warn-bg:#3a2d12; --err-bg:#3d1b20; --info-bg:#172a52; --shadow:none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0d1426; --surface:#141d33; --surface2:#19243e; --ink:#e6ecfa; --muted:#9db0d3; --line:#26335a;
+    --navy:#cfe0ff; --blue:#6aa3ff; --ok:#46d39a; --warn:#f3b25c; --err:#ff8b90;
+    --ok-bg:#12372c; --warn-bg:#3a2d12; --err-bg:#3d1b20; --info-bg:#172a52; --shadow:none;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:'Noto Sans Thai','Leelawadee UI',Tahoma,system-ui,sans-serif; font-variant-numeric:tabular-nums; }
+  a { color:var(--blue); }
+  .topnav { position:sticky; top:0; z-index:5; background:var(--surface); border-bottom:1.5px solid var(--line); display:flex; align-items:center; gap:4px; padding:8px 14px; flex-wrap:wrap; }
+  .brand { font-weight:800; color:var(--navy); margin-right:10px; }
+  .topnav a.nav { text-decoration:none; color:var(--muted); font-weight:700; font-size:.92rem; padding:7px 12px; border-radius:10px; }
+  .topnav a.nav.on { background:var(--info-bg); color:var(--blue); }
+  .topnav .sp { flex:1; }
+  .topnav .who { color:var(--muted); font-size:.8rem; }
+  main { max-width:1100px; margin:0 auto; padding:16px 14px 60px; }
+  h1 { font-size:1.35rem; margin:0; color:var(--navy); }
+  h2 { font-size:1rem; margin:0 0 10px; color:var(--navy); }
+  .head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .head .upd { color:var(--muted); font-size:.82rem; }
+  button, select { font:inherit; }
+  button { font-weight:700; border:none; border-radius:10px; padding:8px 13px; cursor:pointer; background:var(--blue); color:#fff; }
+  button.alt { background:var(--info-bg); color:var(--blue); }
+  button:focus-visible, select:focus-visible, a:focus-visible { outline:3px solid #9cc4ff; outline-offset:2px; }
+  select { padding:7px 10px; border-radius:10px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); }
+  .card { background:var(--surface); border:1.5px solid var(--line); border-radius:16px; padding:14px; box-shadow:var(--shadow); }
+  .grid { display:grid; gap:12px; }
+  .g4 { grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); }
+  .g2 { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+  .alerts { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+  .alert { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border-radius:12px; font-size:.92rem; line-height:1.45; }
+  .alert.error { background:var(--err-bg); color:var(--err); } .alert.warn { background:var(--warn-bg); color:var(--warn); } .alert.info { background:var(--info-bg); color:var(--blue); }
+  .alert b { white-space:nowrap; }
+  .health { display:flex; flex-direction:column; gap:2px; }
+  .health .row { display:flex; align-items:center; gap:8px; font-weight:700; }
+  .dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; background:var(--muted); }
+  .dot.ok { background:var(--ok); box-shadow:0 0 0 3px var(--ok-bg); } .dot.bad { background:var(--err); box-shadow:0 0 0 3px var(--err-bg); } .dot.warn { background:var(--warn); box-shadow:0 0 0 3px var(--warn-bg); }
+  .sub { color:var(--muted); font-size:.82rem; }
+  .kpi .big { font-size:2rem; font-weight:800; color:var(--navy); line-height:1.1; margin:2px 0; }
+  .kpi .lbl { color:var(--muted); font-size:.85rem; font-weight:700; }
+  .kv { display:flex; justify-content:space-between; gap:10px; padding:5px 0; border-top:1px solid var(--line); font-size:.9rem; }
+  .kv:first-of-type { border-top:none; }
+  .kv b { font-weight:800; }
+  .bars .b { display:flex; align-items:center; gap:8px; font-size:.88rem; margin:5px 0; }
+  .bars .b .n { width:92px; color:var(--muted); font-weight:700; }
+  .bars .b .t { flex:1; height:12px; background:var(--surface2); border-radius:99px; overflow:hidden; }
+  .bars .b .t i { display:block; height:100%; background:var(--blue); border-radius:99px; }
+  .bars .b .v { width:32px; text-align:right; font-weight:800; }
+  svg text { fill:var(--muted); font-size:11px; font-family:inherit; }
+  .legend { display:flex; gap:14px; font-size:.82rem; color:var(--muted); margin-top:4px; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; }
+  th { text-align:left; color:var(--muted); font-weight:700; padding:6px 8px; border-bottom:1.5px solid var(--line); }
+  td { padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .tbl { overflow-x:auto; }
+  .tag { display:inline-block; font-size:.74rem; font-weight:800; border-radius:99px; padding:1px 9px; background:var(--info-bg); color:var(--blue); white-space:nowrap; }
+  .tag.ok { background:var(--ok-bg); color:var(--ok); } .tag.bad { background:var(--err-bg); color:var(--err); } .tag.warn { background:var(--warn-bg); color:var(--warn); }
+  #denied { max-width:520px; margin:40px auto; }
+  [hidden] { display:none !important; }
+  @media (prefers-reduced-motion: no-preference) { .dot { transition:background .3s; } }
+</style>
+</head>
+<body>
+<nav class="topnav" aria-label="เมนูหลัก">
+  <span class="brand">🧩 LINE Hub</span>
+  <a class="nav on" href="/verify/admin/dashboard">ภาพรวม</a>
+  <a class="nav" href="/verify/admin">ผู้ใช้และระบบ</a>
+  <a class="nav" href="/verify/admin/menu">เมนู LINE</a>
+  <a class="nav" href="#activity">กิจกรรม</a>
+  <span class="sp"></span>
+  <span class="who" id="who">กำลังตรวจสอบสิทธิ์…</span>
+</nav>
+
+<main>
+  <div class="card" id="denied" hidden><h2>เข้าไม่ได้</h2><p id="deniedText"></p><div id="loginRow" hidden><button id="loginBtn">เข้าสู่ระบบด้วย LINE</button></div></div>
+
+  <div id="app" hidden>
+    <div class="head">
+      <h1>ภาพรวมระบบ</h1>
+      <span class="upd" id="upd"></span>
+      <span style="flex:1"></span>
+      <label class="sub" style="display:inline-flex;gap:5px;align-items:center"><input type="checkbox" id="auto" checked> รีเฟรชอัตโนมัติทุก 30 วินาที</label>
+      <button class="alt" id="refresh">↻ รีเฟรช</button>
+    </div>
+
+    <div class="alerts" id="alerts" role="status" aria-live="polite"></div>
+
+    <div class="grid g4" style="margin-bottom:12px">
+      <div class="card health"><div class="row"><span class="dot" id="dDb"></span> ฐานข้อมูล</div><div class="sub" id="tDb"></div></div>
+      <div class="card health"><div class="row"><span class="dot" id="dLine"></span> LINE API</div><div class="sub" id="tLine"></div></div>
+      <div class="card health"><div class="row"><span class="dot" id="dHook"></span> Webhook</div><div class="sub" id="tHook"></div></div>
+      <div class="card health"><div class="row"><span class="dot" id="dMenu"></span> เมนูใน OA</div><div class="sub" id="tMenu"></div></div>
+    </div>
+
+    <div class="grid g4" style="margin-bottom:12px">
+      <div class="card kpi"><div class="lbl">พนักงานในระบบ</div><div class="big" id="kUsers">-</div>
+        <div class="kv"><span>ผูก LINE แล้ว</span><b id="kActive">-</b></div><div class="kv"><span>รอยืนยัน</span><b id="kInvited">-</b></div><div class="kv"><span>ยกเลิกแล้ว</span><b id="kInactive">-</b></div></div>
+      <div class="card kpi"><div class="lbl">รหัสผ่านที่ยังไม่ใช้</div><div class="big" id="kCodes">-</div>
+        <div class="kv"><span>หมดอายุใน 24 ชม.</span><b id="kExpSoon">-</b></div><div class="kv"><span>ถูกล็อก</span><b id="kLocked">-</b></div><div class="kv"><span>หมดอายุแล้ว</span><b id="kExpired">-</b></div><div class="kv"><span>ยังไม่ได้รับรหัส</span><b id="kNoCode">-</b></div></div>
+      <div class="card kpi"><div class="lbl">คำขอรออนุมัติ</div><div class="big" id="kPending">-</div>
+        <div class="kv"><span>ยืนยันสำเร็จ (24 ชม.)</span><b id="kOk24">-</b></div><div class="kv"><span>ยืนยันไม่ผ่าน (24 ชม.)</span><b id="kFail24">-</b></div></div>
+      <div class="card kpi"><div class="lbl">ระบบ / เมนู</div><div class="big" id="kApps">-</div>
+        <div class="kv"><span>ระบบที่เปิดใช้งาน</span><b id="kAppsOn">-</b></div><div class="kv"><span>เมนูที่ยังไม่เผยแพร่</span><b id="kMenuDirty">-</b></div><div class="kv"><span>เผยแพร่ล่าสุด</span><b id="kPub" style="font-size:.82rem">-</b></div></div>
+    </div>
+
+    <div class="grid g2" style="margin-bottom:12px">
+      <div class="card">
+        <h2>ความพยายามยืนยันตัวตน 7 วันล่าสุด</h2>
+        <div id="chart"></div>
+        <div class="legend"><span><i style="background:var(--ok)"></i>สำเร็จ</span><span><i style="background:var(--err)"></i>ไม่ผ่าน</span></div>
+      </div>
+      <div class="card bars">
+        <h2>บทบาทของพนักงาน (ไม่นับที่ยกเลิก)</h2>
+        <div id="roles"></div>
+        <p class="sub" style="margin:10px 0 0" id="sys"></p>
+      </div>
+    </div>
+
+    <div class="card" id="activity">
+      <div class="head" style="margin-bottom:8px">
+        <h2 style="margin:0">กิจกรรมล่าสุด</h2>
+        <span style="flex:1"></span>
+        <select id="filter" aria-label="กรองกิจกรรม">
+          <option value="">ทั้งหมด</option><option value="verify.">การยืนยันตัวตน</option><option value="code.">รหัสผ่าน</option><option value="user.">ผู้ใช้/บทบาท</option><option value="request.">คำขออนุมัติ</option><option value="menu">เมนู LINE</option><option value="app.">ระบบ</option>
+        </select>
+        <select id="limit" aria-label="จำนวน"><option value="30">30 รายการ</option><option value="100">100 รายการ</option><option value="200">200 รายการ</option></select>
+      </div>
+      <div class="tbl"><table><thead><tr><th>เวลา</th><th>ผู้ทำ</th><th>กิจกรรม</th><th>เป้าหมาย / รายละเอียด</th></tr></thead><tbody id="log"></tbody></table></div>
+      <p class="sub" id="logEmpty" hidden>ยังไม่มีกิจกรรม</p>
+    </div>
+  </div>
+</main>
+
+<script src="/verify/config.js"></script>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var idToken = '', timer = null;
+  var LABELS = {
+    'verify.success': ['ยืนยันตัวตนสำเร็จ', 'ok'], 'verify.fail': ['ยืนยันไม่ผ่าน', 'bad'],
+    'code.issue': ['ออกรหัสผ่าน', ''], 'code.issue-all': ['ออกรหัสให้ทุกคน', ''],
+    'request.approve': ['อนุมัติคำขอ', 'ok'], 'request.reject': ['ปฏิเสธคำขอ', 'warn'],
+    'user.roles': ['เปลี่ยนบทบาท', ''], 'user.unlink': ['ยกเลิกการผูก', 'warn'], 'users.import': ['นำเข้ารายชื่อ', ''],
+    'app.save': ['บันทึกระบบ', ''], 'menu.save': ['บันทึกร่างเมนู', ''], 'menu.image': ['เปลี่ยนภาพเมนู', ''], 'menu.import': ['นำเข้าเมนู', ''],
+    'menu.publish': ['เผยแพร่เมนู', 'ok'], 'menus.relink-all': ['ผูกเมนูใหม่ทุกคน', '']
+  };
+  var ROLE_TH = { staff: 'พนักงาน (staff)', driver: 'คนขับ (driver)', admin: 'แอดมิน (admin)', superadmin: 'superadmin', guest: 'guest' };
+
+  function el(tag, props, kids) {
+    var e = document.createElement(tag);
+    Object.keys(props || {}).forEach(function (k) { if (k === 'text') e.textContent = props[k]; else if (k === 'class') e.className = props[k]; else e.setAttribute(k, props[k]); });
+    (kids || []).forEach(function (c) { e.appendChild(c); });
+    return e;
+  }
+  function api(path) {
+    return fetch(path, { headers: { 'Authorization': 'Bearer ' + idToken } }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, json: j }; }); });
+  }
+  var fmtTime = function (d) { return new Date(d).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
+  var set = function (id, v) { $(id).textContent = v; };
+  function dot(id, state) { $(id).className = 'dot ' + state; }
+  function dur(s) { var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return (d ? d + ' วัน ' : '') + (h || d ? h + ' ชม. ' : '') + m + ' นาที'; }
+
+  function renderMonitor(m) {
+    set('upd', 'อัปเดตล่าสุด ' + new Date(m.generatedAt).toLocaleTimeString('th-TH'));
+    var al = $('alerts'); al.textContent = '';
+    var icon = { error: '⛔', warn: '⚠️', info: 'ℹ️' };
+    m.alerts.forEach(function (a) { al.appendChild(el('div', { class: 'alert ' + a.level }, [el('b', { text: icon[a.level] }), el('span', { text: a.message })])); });
+
+    dot('dDb', m.db.ok ? 'ok' : 'bad'); set('tDb', m.db.ok ? 'ปกติ · ' + (m.storeKind === 'prisma' ? 'MariaDB' : 'หน่วยความจำ (ทดลอง)') : m.db.error);
+    dot('dLine', m.line.ok ? 'ok' : 'bad'); set('tLine', m.line.bot ? m.line.bot.displayName + ' ' + m.line.bot.basicId : (m.line.errors[0] || 'ไม่ทราบ'));
+    var hook = m.line.webhook;
+    dot('dHook', !hook ? 'bad' : hook.active ? 'ok' : 'warn'); set('tHook', !hook ? 'อ่านสถานะไม่ได้' : hook.active ? 'เปิดอยู่ · ' + hook.endpoint.replace(/^https:\/\//, '') : 'ยังไม่เปิด "Use webhook"');
+    var mm = m.menus, oa = m.line.oaMenus;
+    dot('dMenu', mm.total === 0 || oa === 0 ? 'warn' : mm.dirty ? 'warn' : 'ok'); set('tMenu', 'ใน OA ' + (oa === null ? '?' : oa) + ' ชุด · ในระบบ ' + mm.total + ' ชุด' + (mm.dirty ? ' · รอเผยแพร่ ' + mm.dirty : ''));
+
+    set('kUsers', m.users.total); set('kActive', m.users.active); set('kInvited', m.users.invited); set('kInactive', m.users.inactive);
+    set('kCodes', m.codes.outstanding); set('kExpSoon', m.codes.expiringSoon); set('kLocked', m.codes.locked); set('kExpired', m.codes.expired); set('kNoCode', m.codes.invitedWithoutCode);
+    set('kPending', m.requests.pending); set('kOk24', m.attempts.last24h.ok); set('kFail24', m.attempts.last24h.fail);
+    set('kApps', m.apps.total); set('kAppsOn', m.apps.active); set('kMenuDirty', mm.dirty); set('kPub', mm.lastPublishedAt ? fmtTime(mm.lastPublishedAt) : 'ยังไม่เคย');
+
+    var roles = $('roles'); roles.textContent = '';
+    var max = Math.max.apply(null, [1].concat(Object.keys(m.roles).map(function (k) { return m.roles[k]; })));
+    ['superadmin', 'admin', 'driver', 'staff'].forEach(function (k) {
+      var n = m.roles[k] || 0, bar = el('i', {}); bar.style.width = (n / max * 100) + '%';
+      roles.appendChild(el('div', { class: 'b' }, [el('span', { class: 'n', text: ROLE_TH[k] }), el('span', { class: 't' }, [bar]), el('span', { class: 'v', text: String(n) })]));
+    });
+    set('sys', 'เวอร์ชัน ' + m.version + ' · เปิดทำงานมาแล้ว ' + dur(m.uptimeSec));
+    drawChart(m.attempts.days);
+  }
+
+  // กราฟแท่งซ้อน (สำเร็จ/ไม่ผ่าน) 7 วัน — สเกลเดียวกันทั้งกราฟ มีค่าตัวเลขบนแท่ง
+  function drawChart(days) {
+    var box = $('chart'); box.textContent = '';
+    var NS = 'http://www.w3.org/2000/svg', W = 520, H = 190, L = 28, B = 28, T = 14, R = 8;
+    var max = Math.max(1, Math.max.apply(null, days.map(function (d) { return d.ok + d.fail; })));
+    var step = max <= 5 ? 1 : Math.ceil(max / 5), top = Math.ceil(max / step) * step;
+    var svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', '100%'); svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'กราฟความพยายามยืนยันตัวตน 7 วันล่าสุด: ' + days.map(function (d) { return d.date + ' สำเร็จ ' + d.ok + ' ไม่ผ่าน ' + d.fail; }).join(', '));
+    function add(tag, attrs, text) { var e = document.createElementNS(NS, tag); Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); }); if (text !== undefined) e.textContent = text; svg.appendChild(e); return e; }
+    var ph = H - B - T, pw = W - L - R, y = function (v) { return T + ph - v / top * ph; };
+    for (var v = 0; v <= top; v += step) { add('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: 'var(--line)', 'stroke-width': 1 }); add('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end' }, String(v)); }
+    var bw = Math.min(36, pw / days.length * 0.6);
+    days.forEach(function (d, i) {
+      var cx = L + pw / days.length * (i + .5), hOk = d.ok / top * ph, hFail = d.fail / top * ph;
+      if (d.ok) add('rect', { x: cx - bw / 2, y: y(0) - hOk, width: bw, height: hOk, fill: 'var(--ok)', rx: 3 });
+      if (d.fail) add('rect', { x: cx - bw / 2, y: y(0) - hOk - hFail, width: bw, height: hFail, fill: 'var(--err)', rx: 3 });
+      if (d.ok + d.fail) add('text', { x: cx, y: y(d.ok + d.fail) - 4, 'text-anchor': 'middle', style: 'font-weight:800' }, String(d.ok + d.fail));
+      add('text', { x: cx, y: H - 10, 'text-anchor': 'middle' }, d.date.slice(8) + '/' + d.date.slice(5, 7));
+    });
+    box.appendChild(svg);
+    if (!days.some(function (d) { return d.ok + d.fail; })) box.appendChild(el('p', { class: 'sub', text: 'ยังไม่มีความพยายามยืนยันตัวตนใน 7 วันนี้' }));
+  }
+
+  function renderLog(rows) {
+    var body = $('log'); body.textContent = '';
+    $('logEmpty').hidden = rows.length > 0;
+    rows.forEach(function (r) {
+      var lab = LABELS[r.action] || [r.action, ''];
+      var detail = r.detail ? ' ' + JSON.stringify(r.detail) : '';
+      body.appendChild(el('tr', {}, [
+        el('td', { text: fmtTime(r.createdAt), style: 'white-space:nowrap' }), el('td', { text: r.actor }),
+        el('td', {}, [el('span', { class: 'tag ' + lab[1], text: lab[0] })]),
+        el('td', { text: (r.target || '') + detail, style: 'word-break:break-word;color:var(--muted)' })
+      ]));
+    });
+  }
+
+  function load() {
+    var q = '/api/admin/audit?limit=' + $('limit').value + ($('filter').value ? '&prefix=' + encodeURIComponent($('filter').value) : '');
+    return Promise.all([api('/api/admin/monitor'), api(q)]).then(function (rs) {
+      if (rs[0].status === 401 || rs[0].status === 403) { deny(rs[0].status === 403 ? 'หน้านี้สำหรับ superadmin เท่านั้น' : 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่', true); return; }
+      if (rs[0].status === 200) renderMonitor(rs[0].json.data);
+      if (rs[1].status === 200) renderLog(rs[1].json.data);
+    }).catch(function () { set('upd', 'เชื่อมต่อไม่ได้ — จะลองใหม่'); });
+  }
+  function deny(t, canLogin) { $('who').textContent = ''; $('app').hidden = true; $('denied').hidden = false; $('deniedText').textContent = t; $('loginRow').hidden = !canLogin; if (timer) clearInterval(timer); }
+  function schedule() { if (timer) clearInterval(timer); if ($('auto').checked) timer = setInterval(load, 30000); }
+
+  $('refresh').onclick = load; $('filter').onchange = load; $('limit').onchange = load; $('auto').onchange = schedule;
+  $('loginBtn').onclick = function () { liff.login({ redirectUri: location.href }); };
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && idToken && $('auto').checked) load(); });
+
+  if (!window.HUB_CONFIG || !window.HUB_CONFIG.liffId) { deny('ระบบยังไม่ได้ตั้งค่า LIFF'); return; }
+  liff.init({ liffId: window.HUB_CONFIG.liffId }).then(function () {
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+    idToken = liff.getIDToken();
+    if (!idToken) { deny('ไม่ได้รับสิทธิ์จาก LINE — กดเข้าสู่ระบบอีกครั้ง', true); return; }
+    return api('/api/admin/whoami').then(function (r) {
+      if (r.status !== 200) { deny(r.status === 403 ? 'หน้านี้สำหรับ superadmin เท่านั้น' : 'เข้าสู่ระบบไม่สำเร็จ', r.status !== 403); return; }
+      $('who').textContent = r.json.data.actor; $('app').hidden = false; schedule(); return load();
+    });
+  }).catch(function () { deny('เริ่มต้น LINE ไม่สำเร็จ — ตรวจว่าเปิดจากเบราว์เซอร์/แอป LINE ที่เชื่อมอินเทอร์เน็ต', true); });
+})();
+</script>
+</body>
+</html>
