@@ -107,6 +107,7 @@ export function buildApp(d: AppDeps): FastifyInstance {
   const adminHtml = page('admin.html')
   const menuHtml = page('menu.html')
   const dashHtml = page('dashboard.html')
+  const appsHtml = page('apps.html')
   const sendPage = (reply: FastifyReply, html: string) => reply
     .header('Content-Type', 'text/html; charset=utf-8')
     .header('Cache-Control', 'no-store')
@@ -116,6 +117,9 @@ export function buildApp(d: AppDeps): FastifyInstance {
   app.get('/verify', async (_req, reply) => sendPage(reply, verifyHtml))
   // หน้าจัดการสำหรับ superadmin — เปิดผ่าน LIFF เดียวกัน: https://liff.line.me/<LIFF ID>/admin (LINE ต่อ path ท้าย endpoint)
   app.get('/verify/admin', async (_req, reply) => sendPage(reply, adminHtml))
+  // หน้า ALL APP สำหรับพนักงาน/ทุกคน — รวมทุกเว็บไซต์ทุกลิงก์ตามสิทธิ์ (ข้อมูลมาจาก /api/me)
+  app.get('/verify/apps', async (_req, reply) => sendPage(reply, appsHtml))
+  app.get('/apps', async (_req, reply) => reply.redirect('/verify/apps'))
   app.get('/verify/admin/menu', async (_req, reply) => sendPage(reply, menuHtml))
   app.get('/verify/admin/dashboard', async (_req, reply) => sendPage(reply, dashHtml))
   // ทางลัดที่จำง่าย: เปิดผ่านเว็บปกติได้ (ล็อกอินด้วย LINE) — ไปแดชบอร์ด

@@ -779,6 +779,15 @@ describe('หน้ายืนยันตัวตนและ CORS', () => {
     expect(page.body).not.toContain('Bearer ' + 'a'.repeat(32))
   })
 
+  it('หน้า ALL APP ส่ง HTML และ /apps ไปหน้านั้น', async () => {
+    const { app } = setup()
+    const p = await app.inject({ method: 'GET', url: '/verify/apps' })
+    expect(p.statusCode).toBe(200)
+    expect(p.body).toContain('ALL APP')
+    expect(p.headers['x-frame-options']).toBe('DENY')
+    expect((await app.inject({ method: 'GET', url: '/apps' })).headers.location).toBe('/verify/apps')
+  })
+
   it('CORS เฉพาะ origin ที่อนุญาต', async () => {
     const { app } = setup()
     const ok = await app.inject({ method: 'GET', url: '/health', headers: { origin: 'https://allapp.example' } })

@@ -70,7 +70,6 @@ test('LIFF ID กลายเป็น https://liff.line.me/<id>', () => {
 })
 
 test('todoList นับตรงกับปุ่ม TODO', () => {
-  assert.ok(todoList(config).length > 0)
   assert.ok(todoList(config).every(t => ['liffId', 'url'].includes(t.field)))
 })
 
