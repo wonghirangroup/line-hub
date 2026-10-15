@@ -84,6 +84,7 @@ body { padding:0 0 40px; }
   liff.init({ liffId: window.HUB_CONFIG.liffId }).then(function () {
     if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
     idToken = liff.getIDToken();
+    if (idToken && (function(t){try{var p=JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));return p.exp*1000<Date.now()+60000}catch(e){return false}})(idToken)) { liff.logout(); liff.login({ redirectUri: location.href }); return; } // token หมดอายุ (อายุ 1 ชม.) → ขอใหม่
     if (!idToken) { fatal('ไม่ได้รับสิทธิ์ยืนยันตัวตนจาก LINE กรุณาเปิดจากแอป LINE'); return; }
     return api('GET', '/api/verify/status').then(function (r) {
       if (r.status !== 200) { fatal('ตรวจสอบสถานะไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'); return; }

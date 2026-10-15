@@ -233,6 +233,7 @@
   liff.init({ liffId: window.HUB_CONFIG.liffId }).then(function () {
     if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
     idToken = liff.getIDToken();
+    if (idToken && (function(t){try{var p=JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));return p.exp*1000<Date.now()+60000}catch(e){return false}})(idToken)) { liff.logout(); liff.login({ redirectUri: location.href }); return; } // token หมดอายุ (อายุ 1 ชม.) → ขอใหม่
     if (!idToken) { deny('ไม่ได้รับสิทธิ์จาก LINE — กดเข้าสู่ระบบอีกครั้ง', true); return; }
     return api('/api/admin/whoami').then(function (r) {
       if (r.status !== 200) { deny(r.status === 403 ? 'หน้านี้สำหรับ superadmin เท่านั้น' : 'เข้าสู่ระบบไม่สำเร็จ', r.status !== 403); return; }

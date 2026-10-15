@@ -88,6 +88,7 @@ body { padding:0 0 calc(30px + env(safe-area-inset-bottom)); }
   liff.init({ liffId: window.HUB_CONFIG.liffId }).then(function () {
     if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
     idToken = liff.getIDToken();
+    if (idToken && (function(t){try{var p=JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));return p.exp*1000<Date.now()+60000}catch(e){return false}})(idToken)) { liff.logout(); liff.login({ redirectUri: location.href }); return; } // token หมดอายุ (อายุ 1 ชม.) → ขอใหม่
     if (!idToken) { fail('ไม่ได้รับสิทธิ์จาก LINE — เปิดจากแอป LINE หรือเข้าสู่ระบบอีกครั้ง'); return; }
     return fetch('/api/me', { headers: { Authorization: 'Bearer ' + idToken } }).then(function (r) { return r.json().then(function (j) { return { status: r.status, json: j }; }); }).then(function (r) {
       if (r.status !== 200) { fail('โหลดรายการไม่สำเร็จ กรุณาลองใหม่'); return; }
