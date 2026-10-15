@@ -4,3 +4,8 @@ node_modules/
 # ภาพที่ได้จากสคริปต์ทดสอบหน้าจอ
 ui-*.png
 shots/
+
+# ภาพมาสคอต/โลโก้ของแต่ละระบบและภาพเมนูที่สร้างแล้ว — เก็บในเครื่อง (repo นี้เป็น public)
+assets/brand/
+assets/richmenu-brand/
+menus.json
