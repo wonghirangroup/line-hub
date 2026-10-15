@@ -788,6 +788,23 @@ describe('หน้ายืนยันตัวตนและ CORS', () => {
     expect((await app.inject({ method: 'GET', url: '/apps' })).headers.location).toBe('/verify/apps')
   })
 
+  it('ไฟล์สไตล์/รูปมาสคอตส่งได้ (ชนิดถูก) · ชื่อไฟล์แปลก/พยายามออกนอกโฟลเดอร์ ถูกปฏิเสธ · CSP ยอมฟอนต์ Google', async () => {
+    const { app } = setup()
+    const css = await app.inject({ method: 'GET', url: '/verify/assets/hub.css' })
+    expect(css.statusCode).toBe(200)
+    expect(css.headers['content-type']).toContain('text/css')
+    expect(css.body).toContain('--blue')
+    const owl = await app.inject({ method: 'GET', url: '/verify/assets/owl.webp' })
+    expect(owl.statusCode).toBe(200)
+    expect(owl.headers['content-type']).toBe('image/webp')
+    for (const bad of ['..%2f..%2fpackage.json', '%2e%2e%2fsrc%2fapp.ts', 'app.ts', 'nope.css', '.env', 'hub.css%00.png']) {
+      expect([400, 404]).toContain((await app.inject({ method: 'GET', url: '/verify/assets/' + bad })).statusCode)
+    }
+    const page = await app.inject({ method: 'GET', url: '/verify' })
+    expect(page.headers['content-security-policy']).toContain('fonts.gstatic.com')
+    expect(page.body).toContain('/verify/assets/hub.css')
+  })
+
   it('CORS เฉพาะ origin ที่อนุญาต', async () => {
     const { app } = setup()
     const ok = await app.inject({ method: 'GET', url: '/health', headers: { origin: 'https://allapp.example' } })

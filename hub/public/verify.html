@@ -4,34 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ยืนยันตัวตนพนักงาน</title>
+<link rel="icon" href="/verify/assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/verify/assets/hub.css">
 <style>
-  :root { --navy:#0B1B4D; --blue:#1D6FE0; --ink:#1f2a44; --muted:#5b6b8c; --line:#d8e4f8; --bg:#eef4ff; --ok:#0f9d6b; --warn:#b45309; --err:#c0272d; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family:'Noto Sans Thai','Leelawadee UI',Tahoma,system-ui,sans-serif; background:linear-gradient(160deg,#eaf2ff,#f7faff 60%,#e6f0ff); color:var(--ink); min-height:100vh; padding:20px 16px 40px; }
-  main { max-width:440px; margin:0 auto; }
-  h1 { font-size:1.45rem; color:var(--navy); margin:12px 0 4px; }
-  p.lead { color:var(--muted); margin:0 0 20px; line-height:1.6; }
-  .card { background:#fff; border:1.5px solid var(--line); border-radius:24px; padding:22px 20px; box-shadow:0 10px 28px rgba(36,75,131,.10); }
-  label { display:block; font-weight:700; margin:0 0 6px; color:var(--navy); }
-  input { width:100%; font:inherit; font-size:1.05rem; padding:14px 14px; border-radius:14px; border:1.5px solid var(--line); background:#fff; color:var(--ink); }
-  input:focus-visible, button:focus-visible { outline:3px solid #9cc4ff; outline-offset:2px; }
+body { padding:0 0 40px; }
+  main { max-width:460px; padding:12px 14px 30px; }
   .field { margin-bottom:16px; }
-  button { width:100%; font:inherit; font-size:1.05rem; font-weight:800; color:#fff; background:var(--blue); border:none; border-radius:16px; padding:15px; cursor:pointer; }
-  button:disabled { opacity:.55; cursor:default; }
-  .msg { margin-top:14px; padding:12px 14px; border-radius:14px; line-height:1.6; font-size:.95rem; }
-  .msg.err { background:#fdecec; color:var(--err); }
+  label { display:block; font-weight:800; margin:0 0 6px; color:var(--ink); }
+  input { width:100%; font-size:1.05rem; padding:14px; }
+  .card { padding:20px; border-radius:var(--r-xl); box-shadow:var(--shadow); }
+  form button, #retry { width:100%; font-size:1.05rem; padding:15px; border-radius:16px; }
   .state { text-align:center; padding:10px 0; }
   .state .big { font-size:3rem; line-height:1; }
-  .state h2 { margin:10px 0 6px; color:var(--navy); }
+  .state h2 { margin:10px 0 6px; }
   .state p { margin:0; color:var(--muted); line-height:1.6; }
   .hint { font-size:.82rem; color:var(--muted); margin-top:14px; line-height:1.55; }
-  [hidden] { display:none !important; }
 </style>
 </head>
 <body>
 <main>
-  <h1>ยืนยันตัวตนพนักงาน</h1>
-  <p class="lead">ผูกบัญชี LINE ของคุณกับข้อมูลพนักงาน เพื่อใช้เมนูของพนักงาน ต้องใช้รหัสผ่านที่ผู้ดูแลระบบ (superadmin) ออกให้คุณโดยตรง</p>
+  <section class="hero"><div class="txt"><h1>ยืนยันตัวตนพนักงาน</h1><p>ผูกบัญชี LINE กับข้อมูลพนักงาน ใช้รหัสผ่านที่ผู้ดูแลระบบ (superadmin) ออกให้คุณโดยตรง</p></div><img class="mascot" src="/verify/assets/owl.webp" alt="" aria-hidden="true"></section>
 
   <div class="card" id="loading"><div class="state"><div class="big">⏳</div><p>กำลังตรวจสอบ…</p></div></div>
 

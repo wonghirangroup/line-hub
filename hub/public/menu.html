@@ -4,75 +4,58 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>แก้ไขเมนู LINE</title>
+<link rel="icon" href="/verify/assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/verify/assets/hub.css">
 <style>
-  :root { --navy:#0B1B4D; --blue:#1D6FE0; --ink:#1f2a44; --muted:#5b6b8c; --line:#d8e4f8; --ok:#0f9d6b; --warn:#b45309; --err:#c0272d; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family:'Noto Sans Thai','Leelawadee UI',Tahoma,system-ui,sans-serif; background:#f4f8ff; color:var(--ink); padding:12px 10px 90px; }
-  main { max-width:820px; margin:0 auto; }
-  h1 { font-size:1.25rem; color:var(--navy); margin:4px 0 2px; }
-  h2 { font-size:1rem; color:var(--navy); margin:0 0 8px; }
-  a { color:var(--blue); }
-  .sub { color:var(--muted); font-size:.85rem; margin-bottom:12px; }
-  .card { background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:12px; margin-bottom:12px; }
-  button { font:inherit; font-weight:700; border:none; border-radius:12px; padding:9px 13px; cursor:pointer; background:var(--blue); color:#fff; }
-  button.alt { background:#eaf2ff; color:var(--blue); }
-  button.danger { background:#fdecec; color:var(--err); }
-  button:disabled { opacity:.5; cursor:default; }
-  button:focus-visible, input:focus-visible, select:focus-visible { outline:3px solid #9cc4ff; outline-offset:2px; }
-  input, select { font:inherit; padding:8px 10px; border-radius:10px; border:1.5px solid var(--line); background:#fff; color:var(--ink); min-width:0; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  .grow { flex:1; min-width:120px; }
-  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
-  .tabs button { background:#eaf2ff; color:var(--blue); }
-  .tabs button.on { background:var(--blue); color:#fff; }
-  .stagewrap { background:#e9eef8; border-radius:12px; padding:8px; overflow:hidden; }
-  .stage { position:relative; margin:0 auto; background:#fff center/100% 100% no-repeat; touch-action:none; user-select:none; -webkit-user-select:none; outline:1px solid var(--line); }
-  .stage.noimg { background:repeating-linear-gradient(45deg,#f1f5fb,#f1f5fb 10px,#e6edf8 10px,#e6edf8 20px); }
-  .area { position:absolute; border:2px solid rgba(29,111,224,.9); background:rgba(29,111,224,.14); cursor:move; touch-action:none; }
-  .area.sel { border-color:#ef6c00; background:rgba(239,108,0,.2); z-index:2; }
+.tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .tabs button { background:var(--tint); color:var(--blue); box-shadow:none; }
+  .tabs button.on { background:linear-gradient(180deg,var(--blue2),var(--blue-deep)); color:#fff; box-shadow:var(--shadow-btn); }
+  .stagewrap { background:#E4EEFB; border-radius:var(--r-lg); padding:10px; overflow:hidden; }
+  .stage { position:relative; margin:0 auto; background:#fff center/100% 100% no-repeat; touch-action:none; user-select:none; -webkit-user-select:none; outline:1px solid var(--line); border-radius:8px; }
+  .stage.noimg { background:repeating-linear-gradient(45deg,#F1F6FD,#F1F6FD 10px,#E6EEFA 10px,#E6EEFA 20px); }
+  .area { position:absolute; border:2px solid rgba(29,111,224,.9); background:rgba(29,111,224,.14); cursor:move; touch-action:none; border-radius:4px; }
+  .area.sel { border-color:#F59E0B; background:rgba(245,158,11,.22); z-index:2; }
   .area .tag { position:absolute; left:2px; top:2px; background:rgba(11,27,77,.85); color:#fff; font-size:11px; font-weight:800; border-radius:6px; padding:0 5px; max-width:calc(100% - 22px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
-  .area .h { position:absolute; right:-2px; bottom:-2px; width:22px; height:22px; background:#ef6c00; border-radius:6px 0 0 0; cursor:nwse-resize; touch-action:none; }
-  .alist .item { border-top:1px solid var(--line); padding:10px 0; }
+  .area .h { position:absolute; right:-2px; bottom:-2px; width:22px; height:22px; background:#F59E0B; border-radius:8px 0 4px 0; cursor:nwse-resize; touch-action:none; }
+  .alist .item { border-top:1px solid var(--line); padding:12px 0; }
   .alist .item:first-child { border-top:none; }
-  .alist .item.sel { background:#fff6ec; margin:0 -6px; padding:10px 6px; border-radius:10px; }
-  .num { width:74px; }
-  .lbl { font-size:.75rem; color:var(--muted); margin:6px 0 2px; }
-  .chip { display:inline-block; font-size:.72rem; font-weight:800; border-radius:99px; padding:2px 9px; }
-  .chip.dirty { background:#fff4d6; color:var(--warn); } .chip.ok { background:#dff7ec; color:var(--ok); } .chip.none { background:#fdecec; color:var(--err); }
-  .msg { padding:10px 12px; border-radius:12px; margin:10px 0; font-size:.9rem; line-height:1.5; }
-  .msg.err { background:#fdecec; color:var(--err); } .msg.ok { background:#dff7ec; color:var(--ok); }
-  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1.5px solid var(--line); padding:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; z-index:5; }
-  .modal { position:fixed; inset:0; background:rgba(11,27,77,.55); display:flex; align-items:center; justify-content:center; padding:16px; z-index:10; }
-  .modal .box { background:#fff; border-radius:18px; padding:18px; max-width:420px; width:100%; }
+  .alist .item.sel { background:#FFF7E6; margin:0 -8px; padding:12px 8px; border-radius:var(--r-md); }
+  .num { width:78px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:rgba(255,255,255,.95); backdrop-filter:blur(6px); border-top:1.5px solid var(--line); padding:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; z-index:30; }
+  @media (min-width:900px) { .bar { left:var(--side-w); } }
   .tpl-group { margin-bottom:14px; }
-  .tpl-title { font-weight:800; color:var(--navy); margin:0 0 2px; }
+  .tpl-title { font-weight:800; color:var(--ink); margin:0 0 2px; }
   .sizes { display:flex; gap:12px; flex-wrap:wrap; margin:4px 0 8px; font-size:.85rem; }
   .sizes label { display:inline-flex; gap:4px; align-items:center; }
   .tpls { display:flex; gap:10px; flex-wrap:wrap; }
-  .tpl { border:2px solid #cfd8e8; border-radius:8px; padding:4px; background:#fff; cursor:pointer; position:relative; }
-  .tpl.on { border-color:#0fb35b; background:#e4f7ec; }
-  .tpl .pv { position:relative; background:#eceef3; border:1px solid #b9c0cc; }
-  .tpl .pv i { position:absolute; border:1px solid #b9c0cc; background:#eceef3; box-sizing:border-box; }
-  .tpl .bar2 { height:10px; background:#f7f7f9; border-top:1px solid #d5d9e2; font-size:7px; color:#8a93a6; text-align:center; line-height:10px; }
+  .tpl { border:2px solid #CFD8E8; border-radius:10px; padding:4px; background:#fff; cursor:pointer; }
+  .tpl.on { border-color:#16A34A; background:#E3F7EA; }
+  .tpl .pv { position:relative; background:#ECEEF3; border:1px solid #B9C0CC; }
+  .tpl .pv i { position:absolute; border:1px solid #B9C0CC; background:#ECEEF3; box-sizing:border-box; }
+  .tpl .bar2 { height:10px; background:#F7F7F9; border-top:1px solid #D5D9E2; font-size:7px; color:#8A93A6; text-align:center; line-height:10px; }
   .modal .box.wide { max-width:560px; max-height:92vh; overflow:auto; }
-  .topnav { position:sticky; top:0; z-index:6; background:#fff; border-bottom:1.5px solid #d8e4f8; display:flex; align-items:center; gap:4px; padding:8px 12px; flex-wrap:wrap; margin:-12px -10px 12px; }
-  .topnav .brand { font-weight:800; color:#0B1B4D; margin-right:10px; }
-  .topnav a.nav { text-decoration:none; color:#5b6b8c; font-weight:700; font-size:.9rem; padding:7px 12px; border-radius:10px; }
-  .topnav a.nav.on { background:#e6f0ff; color:#1D6FE0; }
-  [hidden] { display:none !important; }
+  #denied { max-width:520px; }
 </style>
 </head>
 <body>
-<nav class="topnav" aria-label="เมนูหลัก">
-  <span class="brand">🧩 LINE Hub</span>
-  <a class="nav" href="/verify/admin/dashboard">ภาพรวม</a>
-  <a class="nav" href="/verify/admin">ผู้ใช้และระบบ</a>
-  <a class="nav on" href="/verify/admin/menu">เมนู LINE</a>
-  <a class="nav" href="/verify/admin/dashboard#activity">กิจกรรม</a>
-</nav>
+<aside class="side" aria-label="เมนูหลัก">
+  <div class="brand"><img class="logo" src="/verify/assets/logo.png" alt="YooNai"><div class="wm">YooNai<small>HUB</small></div><img class="owl" src="/verify/assets/owl-wave.webp" alt="" aria-hidden="true"></div>
+  <nav class="navlist">
+    <div class="grp">จัดการ</div>
+    <a class="nav" href="/verify/admin/dashboard"><span class="ic">📊</span>ภาพรวม</a>
+    <a class="nav" href="/verify/admin"><span class="ic">👥</span>ผู้ใช้และระบบ</a>
+    <a class="nav on" href="/verify/admin/menu"><span class="ic">🎛️</span>เมนู LINE</a>
+    <a class="nav" href="/verify/admin/dashboard#activity"><span class="ic">🕘</span>กิจกรรม</a>
+    <div class="grp">ลิงก์ลัด</div>
+    <a class="nav" href="/verify/apps"><span class="ic">🧩</span>ALL APP</a>
+  </nav>
+  <div class="foot">LINE Hub · ศูนย์กลางตัวตนและเมนูของทุกระบบ YooNai</div>
+</aside>
 <main>
-  <h1>แก้ไขเมนู LINE</h1>
-  <div class="sub"><span id="who">กำลังตรวจสอบสิทธิ์…</span></div>
+  <section class="hero"><div class="txt"><h1>แก้ไขเมนู LINE</h1><p>เปลี่ยนภาพ จัดพื้นที่กด เลือกเทมเพลต แล้วเผยแพร่ไปที่แชท OA</p><div class="who" id="who">กำลังตรวจสอบสิทธิ์…</div></div><img class="mascot" src="/verify/assets/owl-calendar.webp" alt="" aria-hidden="true"></section>
   <div class="card" id="denied" hidden><h2>เข้าไม่ได้</h2><p id="deniedText"></p></div>
 
   <div id="app" hidden>

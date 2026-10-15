@@ -7,7 +7,7 @@
 ## อัปเดตโค้ดบนเซิร์ฟเวอร์ (ยังไม่มี git remote)
 
 ```bash
-cd line-hub && tar --exclude=node_modules --exclude=dist --exclude=.git --exclude=.env --exclude=assets -cf - . | ssh Smart-Jigsaw "tar -xf - -C /opt/line-hub"
+cd line-hub && tar --exclude=node_modules --exclude=dist --exclude=.git --exclude=.env --exclude=./assets -cf - . | ssh Smart-Jigsaw "tar -xf - -C /opt/line-hub"
 ssh Smart-Jigsaw "cd /opt/line-hub/hub && docker compose up -d --build"
 ```
 

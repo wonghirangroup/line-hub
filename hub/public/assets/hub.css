@@ -1,0 +1,110 @@
+/* LINE Hub — สไตล์กลาง ให้เหมือนระบบ YooNai (Playful Mascot, โทนฟ้า, นกฮูกมาสคอต)
+   อ้างอิง: admin/src/index.css + Sidebar.tsx + employee/pages/profile ของ YooNai */
+:root {
+  --bg:#F3F8FF; --surface:#fff; --ink:#0B1B4D; --body:#1E2A4A; --muted:#5B6B8C; --faint:#7C8BAA; --line:#E3ECF8;
+  --blue:#1D6FE0; --blue2:#2F86F2; --blue-deep:#1D5FD0; --navy:#0B2A8A; --tint:#EAF2FF; --tint2:#DCE9FF;
+  --ok:#16A34A; --ok-bg:#E3F7EA; --warn:#B45309; --warn-bg:#FFF2D6; --err:#DC2626; --err-bg:#FEECEC; --info-bg:#E6F0FF;
+  --r-sm:10px; --r-md:14px; --r-lg:22px; --r-xl:28px;
+  --shadow:0 8px 28px rgba(36,75,131,.12); --shadow-sm:0 4px 14px rgba(36,75,131,.08); --shadow-btn:0 8px 18px -6px rgba(29,95,208,.55);
+  --side-w:264px;
+}
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; color:var(--body); font-family:'Noto Sans Thai','Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; font-variant-numeric:tabular-nums;
+  background:radial-gradient(1100px 460px at 100% -8%, #DCEBFF 0%, rgba(220,235,255,0) 62%), radial-gradient(700px 400px at -10% 110%, #E4F0FF 0%, rgba(228,240,255,0) 60%), var(--bg);
+  background-attachment:fixed; min-height:100vh;
+}
+a { color:var(--blue); }
+h1 { font-size:1.55rem; font-weight:800; color:var(--ink); margin:0; line-height:1.25; }
+h2 { font-size:1.05rem; font-weight:800; color:var(--ink); margin:0 0 10px; }
+.sub { color:var(--muted); font-size:.86rem; }
+.meta { color:var(--muted); font-size:.82rem; margin:2px 0 8px; }
+.lbl { font-size:.76rem; color:var(--faint); margin:8px 0 3px; font-weight:700; }
+.row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.grow { flex:1; min-width:130px; }
+
+/* ── เชลล์: แถบข้างแบบ YooNai (เดสก์ท็อป) / แถบบนเลื่อนได้ (มือถือ) ── */
+.side {
+  background:linear-gradient(180deg,#FFFFFF 0%,#F3F8FF 100%); border-bottom:1px solid var(--line); box-shadow:0 4px 18px rgba(36,75,131,.06);
+  position:sticky; top:0; z-index:20; padding:10px 12px 8px;
+}
+.side .brand { display:flex; align-items:center; gap:10px; position:relative; padding:2px 2px 6px; }
+.side .brand img.logo { width:44px; height:44px; border-radius:14px; box-shadow:0 4px 12px rgba(36,75,131,.14); flex-shrink:0; }
+.side .brand .wm { font-size:1.3rem; font-weight:800; color:var(--navy); line-height:1.1; }
+.side .brand .wm small { display:block; font-size:.7rem; font-weight:700; color:var(--faint); letter-spacing:.05em; margin-top:2px; }
+.side .brand img.owl { position:absolute; right:0; bottom:-2px; width:48px; height:48px; object-fit:contain; pointer-events:none; user-select:none; }
+.side .navlist { display:flex; gap:6px; overflow-x:auto; padding:6px 0 2px; scrollbar-width:none; }
+.side .navlist::-webkit-scrollbar { display:none; }
+.side .grp { display:none; }
+.side a.nav {
+  display:flex; align-items:center; gap:9px; text-decoration:none; color:var(--body); font-weight:700; font-size:.9rem; white-space:nowrap;
+  padding:7px 12px 7px 8px; border-radius:var(--r-md); border:1.5px solid transparent; flex-shrink:0;
+}
+.side a.nav .ic { width:30px; height:30px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; background:var(--tint); }
+.side a.nav:hover { background:#EEF5FF; color:#0B2A8A; }
+.side a.nav.on { color:#fff; background:linear-gradient(180deg,var(--blue2),var(--blue-deep)); box-shadow:var(--shadow-btn); }
+.side a.nav.on .ic { background:rgba(255,255,255,.22); }
+.side .foot { display:none; }
+main { max-width:1100px; margin:0 auto; padding:16px 14px 70px; }
+@media (min-width:900px) {
+  body { padding-left:var(--side-w); }
+  .side { position:fixed; left:0; top:0; bottom:0; width:var(--side-w); border-bottom:none; border-right:1px solid var(--line); box-shadow:4px 0 24px rgba(36,75,131,.08); padding:16px 12px; display:flex; flex-direction:column; overflow-y:auto; }
+  .side .brand { padding:4px 6px 14px; }
+  .side .brand img.logo { width:52px; height:52px; }
+  .side .brand .wm { font-size:1.35rem; }
+  .side .brand img.owl { width:62px; height:62px; right:2px; bottom:4px; }
+  .side .navlist { flex-direction:column; overflow:visible; padding:4px 0; gap:4px; }
+  .side .grp { display:flex; align-items:center; gap:7px; font-size:.68rem; font-weight:800; color:var(--faint); text-transform:uppercase; letter-spacing:.08em; padding:12px 10px 6px; }
+  .side .grp::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--blue2); }
+  .side a.nav { padding:8px 10px; }
+  .side .foot { display:block; margin-top:auto; padding:10px 10px 4px; font-size:.72rem; color:var(--faint); line-height:1.5; border-top:1px solid var(--line); }
+  main { padding:24px 32px 80px; }
+}
+
+/* ── หัวหน้าแบบ YooNai: ฟ้าไล่เฉด + เมฆ + นกฮูก ── */
+.hero {
+  position:relative; overflow:hidden; border-radius:var(--r-xl); padding:22px 20px 22px; margin-bottom:16px; color:#fff;
+  background:linear-gradient(180deg,#4FA3FF 0%,#2F86F2 55%,#1F6FE0 100%); box-shadow:var(--shadow);
+}
+.hero::before { content:""; position:absolute; left:-60px; bottom:-60px; width:240px; height:130px; border-radius:50%; background:rgba(120,185,255,.45); }
+.hero::after { content:""; position:absolute; right:-70px; top:-60px; width:220px; height:110px; border-radius:50%; background:rgba(150,200,255,.35); }
+.hero > * { position:relative; z-index:1; }
+.hero h1 { color:#fff; text-shadow:0 2px 8px rgba(0,40,120,.25); }
+.hero p, .hero .sub, .hero .who { color:rgba(255,255,255,.9); margin:4px 0 0; font-size:.92rem; }
+.hero .who { display:inline-block; background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.3); border-radius:99px; padding:3px 12px; font-size:.8rem; font-weight:700; margin-top:8px; }
+.hero img.mascot { position:absolute; right:6px; bottom:-6px; width:118px; height:118px; object-fit:contain; z-index:2; pointer-events:none; user-select:none; filter:drop-shadow(0 6px 10px rgba(0,40,120,.25)); }
+.hero .txt { max-width:calc(100% - 110px); }
+@media (min-width:640px) { .hero { padding:26px 28px; } .hero img.mascot { width:150px; height:150px; right:18px; } .hero .txt { max-width:calc(100% - 160px); } }
+@media (prefers-reduced-motion: no-preference) { .hero img.mascot { animation:hubfloat 4.5s ease-in-out infinite; } }
+@keyframes hubfloat { 0%,100% { transform:translateY(0) rotate(0) } 50% { transform:translateY(-5px) rotate(2deg) } }
+
+/* ── ส่วนประกอบ ── */
+.card { background:var(--surface); border:1.5px solid var(--line); border-radius:var(--r-lg); padding:16px; margin-bottom:14px; box-shadow:var(--shadow-sm); }
+button { font:inherit; font-weight:700; border:none; border-radius:var(--r-md); padding:9px 15px; cursor:pointer; color:#fff; background:linear-gradient(180deg,var(--blue2),var(--blue-deep)); box-shadow:0 6px 14px -6px rgba(29,95,208,.5); transition:transform .12s, box-shadow .12s; }
+button:hover:not(:disabled) { transform:translateY(-1px); }
+button:active:not(:disabled) { transform:scale(.98); }
+button.alt { background:var(--tint); color:var(--blue); box-shadow:none; }
+button.alt:hover:not(:disabled) { background:var(--tint2); }
+button.danger { background:var(--err-bg); color:var(--err); box-shadow:none; }
+button.ok { background:linear-gradient(180deg,#2FBF6B,#16A34A); box-shadow:0 6px 14px -6px rgba(22,163,74,.55); }
+button:disabled { opacity:.5; cursor:default; box-shadow:none; }
+input, select, textarea { font:inherit; color:var(--body); background:#fff; border:1.5px solid var(--line); border-radius:var(--r-md); padding:9px 12px; min-width:0; }
+input[type=checkbox], input[type=radio] { accent-color:var(--blue); }
+textarea { width:100%; min-height:96px; font-family:ui-monospace,Consolas,monospace; font-size:.85rem; }
+input:focus, select:focus, textarea:focus { outline:none; border-color:var(--blue2); box-shadow:0 0 0 3px rgba(47,134,242,.18); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline:3px solid rgba(47,134,242,.45); outline-offset:2px; }
+.chip { display:inline-block; font-size:.72rem; font-weight:800; border-radius:99px; padding:2px 10px; margin-right:4px; background:var(--tint); color:var(--blue); }
+.chip.ACTIVE, .chip.ok { background:var(--ok-bg); color:var(--ok); }
+.chip.INVITED, .chip.dirty { background:var(--warn-bg); color:var(--warn); }
+.chip.INACTIVE { background:#EEF1F6; color:var(--muted); }
+.chip.none { background:var(--err-bg); color:var(--err); }
+.msg { padding:11px 14px; border-radius:var(--r-md); margin:10px 0; font-size:.92rem; line-height:1.55; }
+.msg.err { background:var(--err-bg); color:var(--err); }
+.msg.ok { background:var(--ok-bg); color:var(--ok); }
+.modal { position:fixed; inset:0; background:rgba(11,27,77,.5); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50; }
+.modal .box { background:#fff; border-radius:var(--r-xl); padding:22px; max-width:420px; width:100%; box-shadow:0 24px 60px rgba(11,27,77,.3); }
+.empty-owl { text-align:center; padding:26px 10px; color:var(--muted); }
+.empty-owl img { width:120px; height:120px; object-fit:contain; display:block; margin:0 auto 6px; }
+[hidden] { display:none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }

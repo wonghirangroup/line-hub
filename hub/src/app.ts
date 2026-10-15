@@ -112,8 +112,19 @@ export function buildApp(d: AppDeps): FastifyInstance {
     .header('Content-Type', 'text/html; charset=utf-8')
     .header('Cache-Control', 'no-store')
     .header('X-Frame-Options', 'DENY')
-    .header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.line-scdn.net; connect-src 'self' https://*.line.me https://*.line-scdn.net; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'")
+    .header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.line-scdn.net; connect-src 'self' https://*.line.me https://*.line-scdn.net; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; frame-ancestors 'none'")
     .send(html)
+  const ASSET_TYPES: Record<string, string> = { css: 'text/css; charset=utf-8', png: 'image/png', webp: 'image/webp', svg: 'image/svg+xml', jpg: 'image/jpeg' }
+  const assetCache = new Map<string, Buffer>()
+  app.get('/verify/assets/:file', async (req, reply) => {
+    const { file } = z.object({ file: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,60}\.(css|png|webp|svg|jpg)$/i) }).parse(req.params)
+    let buf = assetCache.get(file)
+    if (!buf) {
+      try { buf = readFileSync(path.resolve(HERE, '..', 'public', 'assets', file)) } catch { throw new HttpError(404, 'ไม่พบไฟล์', 'NOT_FOUND') }
+      assetCache.set(file, buf)
+    }
+    return reply.header('Content-Type', ASSET_TYPES[file.split('.').pop()!.toLowerCase()]!).header('Cache-Control', 'public, max-age=300').send(buf)
+  })
   app.get('/verify', async (_req, reply) => sendPage(reply, verifyHtml))
   // หน้าจัดการสำหรับ superadmin — เปิดผ่าน LIFF เดียวกัน: https://liff.line.me/<LIFF ID>/admin (LINE ต่อ path ท้าย endpoint)
   app.get('/verify/admin', async (_req, reply) => sendPage(reply, adminHtml))

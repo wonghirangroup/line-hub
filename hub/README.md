@@ -41,7 +41,7 @@ cd hub
 npm install
 cp .env.example .env     # ใส่ค่า LINE_* และ HUB_ADMIN_TOKEN; ตั้ง HUB_STORE=memory
 npm run dev              # http://localhost:4100
-npm test                 # 50 เทสต์ (+ ทดสอบหน้าจอ 22 ข้อด้วย Chrome: node test/ui-smoke.mjs) (ใช้ LINE จำลอง + MemoryStore)
+npm test                 # 52 เทสต์ (+ ทดสอบหน้าจอ 22 ข้อด้วย Chrome: node test/ui-smoke.mjs) (ใช้ LINE จำลอง + MemoryStore)
 ```
 
 `HUB_STORE=memory` ข้อมูลหายเมื่อรีสตาร์ท ใช้ทดลองเท่านั้น
