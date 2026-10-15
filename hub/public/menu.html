@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>แก้ไขเมนู LINE</title>
+<style>
+  :root { --navy:#0B1B4D; --blue:#1D6FE0; --ink:#1f2a44; --muted:#5b6b8c; --line:#d8e4f8; --ok:#0f9d6b; --warn:#b45309; --err:#c0272d; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Noto Sans Thai','Leelawadee UI',Tahoma,system-ui,sans-serif; background:#f4f8ff; color:var(--ink); padding:12px 10px 90px; }
+  main { max-width:820px; margin:0 auto; }
+  h1 { font-size:1.25rem; color:var(--navy); margin:4px 0 2px; }
+  h2 { font-size:1rem; color:var(--navy); margin:0 0 8px; }
+  a { color:var(--blue); }
+  .sub { color:var(--muted); font-size:.85rem; margin-bottom:12px; }
+  .card { background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:12px; margin-bottom:12px; }
+  button { font:inherit; font-weight:700; border:none; border-radius:12px; padding:9px 13px; cursor:pointer; background:var(--blue); color:#fff; }
+  button.alt { background:#eaf2ff; color:var(--blue); }
+  button.danger { background:#fdecec; color:var(--err); }
+  button:disabled { opacity:.5; cursor:default; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline:3px solid #9cc4ff; outline-offset:2px; }
+  input, select { font:inherit; padding:8px 10px; border-radius:10px; border:1.5px solid var(--line); background:#fff; color:var(--ink); min-width:0; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .grow { flex:1; min-width:120px; }
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .tabs button { background:#eaf2ff; color:var(--blue); }
+  .tabs button.on { background:var(--blue); color:#fff; }
+  .stagewrap { background:#e9eef8; border-radius:12px; padding:8px; overflow:hidden; }
+  .stage { position:relative; margin:0 auto; background:#fff center/100% 100% no-repeat; touch-action:none; user-select:none; -webkit-user-select:none; outline:1px solid var(--line); }
+  .stage.noimg { background:repeating-linear-gradient(45deg,#f1f5fb,#f1f5fb 10px,#e6edf8 10px,#e6edf8 20px); }
+  .area { position:absolute; border:2px solid rgba(29,111,224,.9); background:rgba(29,111,224,.14); cursor:move; touch-action:none; }
+  .area.sel { border-color:#ef6c00; background:rgba(239,108,0,.2); z-index:2; }
+  .area .tag { position:absolute; left:2px; top:2px; background:rgba(11,27,77,.85); color:#fff; font-size:11px; font-weight:800; border-radius:6px; padding:0 5px; max-width:calc(100% - 22px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
+  .area .h { position:absolute; right:-2px; bottom:-2px; width:22px; height:22px; background:#ef6c00; border-radius:6px 0 0 0; cursor:nwse-resize; touch-action:none; }
+  .alist .item { border-top:1px solid var(--line); padding:10px 0; }
+  .alist .item:first-child { border-top:none; }
+  .alist .item.sel { background:#fff6ec; margin:0 -6px; padding:10px 6px; border-radius:10px; }
+  .num { width:74px; }
+  .lbl { font-size:.75rem; color:var(--muted); margin:6px 0 2px; }
+  .chip { display:inline-block; font-size:.72rem; font-weight:800; border-radius:99px; padding:2px 9px; }
+  .chip.dirty { background:#fff4d6; color:var(--warn); } .chip.ok { background:#dff7ec; color:var(--ok); } .chip.none { background:#fdecec; color:var(--err); }
+  .msg { padding:10px 12px; border-radius:12px; margin:10px 0; font-size:.9rem; line-height:1.5; }
+  .msg.err { background:#fdecec; color:var(--err); } .msg.ok { background:#dff7ec; color:var(--ok); }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1.5px solid var(--line); padding:10px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; z-index:5; }
+  .modal { position:fixed; inset:0; background:rgba(11,27,77,.55); display:flex; align-items:center; justify-content:center; padding:16px; z-index:10; }
+  .modal .box { background:#fff; border-radius:18px; padding:18px; max-width:420px; width:100%; }
+  .tpl-group { margin-bottom:14px; }
+  .tpl-title { font-weight:800; color:var(--navy); margin:0 0 2px; }
+  .sizes { display:flex; gap:12px; flex-wrap:wrap; margin:4px 0 8px; font-size:.85rem; }
+  .sizes label { display:inline-flex; gap:4px; align-items:center; }
+  .tpls { display:flex; gap:10px; flex-wrap:wrap; }
+  .tpl { border:2px solid #cfd8e8; border-radius:8px; padding:4px; background:#fff; cursor:pointer; position:relative; }
+  .tpl.on { border-color:#0fb35b; background:#e4f7ec; }
+  .tpl .pv { position:relative; background:#eceef3; border:1px solid #b9c0cc; }
+  .tpl .pv i { position:absolute; border:1px solid #b9c0cc; background:#eceef3; box-sizing:border-box; }
+  .tpl .bar2 { height:10px; background:#f7f7f9; border-top:1px solid #d5d9e2; font-size:7px; color:#8a93a6; text-align:center; line-height:10px; }
+  .modal .box.wide { max-width:560px; max-height:92vh; overflow:auto; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>แก้ไขเมนู LINE</h1>
+  <div class="sub"><a href="/verify/admin">← กลับหน้าจัดการผู้ใช้</a> · <span id="who">กำลังตรวจสอบสิทธิ์…</span></div>
+  <div class="card" id="denied" hidden><h2>เข้าไม่ได้</h2><p id="deniedText"></p></div>
+
+  <div id="app" hidden>
+    <div class="tabs" id="tabs"></div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="menuTitle" style="margin:0"></h2>
+        <span id="status"></span>
+      </div>
+      <div class="row" style="margin:8px 0">
+        <button class="alt" id="pickImage">🖼️ เปลี่ยนภาพ</button>
+        <button class="alt" id="dlImage">⬇️ ดาวน์โหลดภาพนี้</button>
+        <input type="file" id="file" accept="image/png,image/jpeg" hidden>
+        <select id="size" aria-label="ขนาดเมนู" title="ขนาดเมนู"></select>
+        <input id="chatBar" maxlength="14" placeholder="ข้อความแถบเมนู (≤14)" aria-label="ข้อความแถบเมนู" style="width:150px">
+      </div>
+      <p class="sub" id="imgHint" style="margin:0 0 8px"></p>
+      <div class="stagewrap"><div class="stage" id="stage"></div></div>
+      <div class="row" style="margin-top:8px">
+        <button class="alt" id="addArea">+ เพิ่มพื้นที่กด</button>
+        <button class="alt" id="tplBtn">🧩 เทมเพลตและขนาด</button>
+        <button class="alt" id="gridBtn">▦ แบ่งช่องเอง</button>
+        <label style="display:inline-flex;gap:4px;align-items:center;font-size:.85rem"><input type="checkbox" id="snap" checked> จัดชิดตาราง</label>
+      </div>
+      <p class="sub" style="margin:6px 0 0">ลากกล่องเพื่อย้าย · ลากมุมสีส้มเพื่อปรับขนาด · หรือพิมพ์ตัวเลขด้านล่างให้พอดีเป๊ะ</p>
+    </div>
+
+    <div class="card">
+      <h2>พื้นที่กด (<span id="count">0</span>/20)</h2>
+      <div class="alist" id="alist"></div>
+    </div>
+
+    <div class="msg" id="msg" hidden role="status"></div>
+  </div>
+</main>
+
+<div class="bar" id="bar" hidden>
+  <button class="alt" id="reload">↺ ย้อนกลับ (โหลดใหม่)</button>
+  <button id="save">💾 บันทึกร่าง</button>
+  <button id="publish" style="background:var(--ok)">🚀 เผยแพร่ไป LINE</button>
+</div>
+
+<div class="modal" id="gridModal" hidden role="dialog" aria-modal="true">
+  <div class="box">
+    <h2>แบ่งช่องเท่าๆ กัน</h2>
+    <p class="sub">จัดพื้นที่กดใหม่เป็นตาราง (ใช้ข้อความ/ปลายทางเดิมตามลำดับ ช่องเกินจะเป็นช่องใหม่ว่างๆ)</p>
+    <div class="row">
+      <label>คอลัมน์ <input class="num" id="gCols" type="number" min="1" max="6" value="3"></label>
+      <label>แถว <input class="num" id="gRows" type="number" min="1" max="4" value="2"></label>
+      <label>เว้นด้านบน (px) <input class="num" id="gTop" type="number" min="0" value="0"></label>
+    </div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="alt" id="gCancel">ยกเลิก</button><button id="gOk">จัดตาราง</button></div>
+  </div>
+</div>
+
+<div class="modal" id="tplModal" hidden role="dialog" aria-modal="true">
+  <div class="box wide">
+    <h2>เลือกเทมเพลตและขนาด</h2>
+    <div class="tpl-group">
+      <div class="tpl-title">ใหญ่ — แสดงเนื้อหาได้มาก</div>
+      <div class="sizes" id="sizesL"></div>
+      <div class="tpls" id="tplsL"></div>
+    </div>
+    <div class="tpl-group">
+      <div class="tpl-title">เล็ก — กะทัดรัด ไม่กินเนื้อที่หน้าจอ</div>
+      <div class="sizes" id="sizesS"></div>
+      <div class="tpls" id="tplsS"></div>
+    </div>
+    <label id="keepBarWrap" style="display:flex;gap:6px;align-items:center;font-size:.9rem;margin-bottom:6px"><input type="checkbox" id="keepBar" checked> คงแถบสลับแท็บไว้ด้านบน (ช่องของเทมเพลตจะอยู่ใต้แถบ)</label>
+    <p class="sub" id="tplNote" style="margin:0 0 8px"></p>
+    <div class="row" style="justify-content:flex-end"><button class="alt" id="tplCancel">ยกเลิก</button><button id="tplOk" disabled>เลือก</button></div>
+  </div>
+</div>
+
+<div class="modal" id="pubModal" hidden role="dialog" aria-modal="true">
+  <div class="box">
+    <h2>เผยแพร่เมนูไป LINE</h2>
+    <p class="sub">ระบบจะสร้างเมนูทั้ง 6 ชุดใหม่จากที่บันทึกไว้ในตอนนี้ แล้วเปลี่ยนให้ทุกคนที่ผูก LINE แล้วอัตโนมัติ (ใช้เวลาไม่กี่วินาที) ต้องบันทึกร่างของทุกเมนูก่อน และทุกเมนูต้องมีภาพ</p>
+    <label style="display:flex;gap:6px;align-items:flex-start;font-size:.9rem"><input type="checkbox" id="pubDefault" style="margin-top:4px"> <span>ตั้งเมนู <b>guest</b> เป็นเมนูเริ่มต้นของ OA ด้วย (ทับเมนูเดิมที่ตั้งใน OA Manager สำหรับคนที่ยังไม่ได้ผูก — ปล่อยว่างไว้ถ้ายังไม่พร้อม)</span></label>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="alt" id="pubCancel">ยกเลิก</button><button id="pubOk" style="background:var(--ok)">เผยแพร่</button></div>
+  </div>
+</div>
+
+<script src="/verify/config.js"></script>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var idToken = '', info = null, key = null, def = null, imgUrl = null, dirtyLocal = false, selected = -1, imgPixels = null;
+  var NAMES = { 'member-staff': 'พนักงาน › แท็บพนักงาน', 'member-web': 'พนักงาน › แท็บเว็บไซต์', 'admin-staff': 'แอดมิน › แท็บพนักงาน', 'admin-admin': 'แอดมิน › แท็บแอดมิน', 'admin-web': 'แอดมิน › แท็บเว็บไซต์', guest: 'guest (ยังไม่ยืนยันตัวตน)' };
+  var TYPES = [['uri', 'เปิดลิงก์เว็บ'], ['liff', 'เปิดผ่าน LIFF'], ['tab', 'สลับแท็บ'], ['message', 'ส่งข้อความ']];
+
+  function el(tag, props, kids) {
+    var e = document.createElement(tag);
+    Object.keys(props || {}).forEach(function (k) { if (k === 'text') e.textContent = props[k]; else if (k === 'class') e.className = props[k]; else e.setAttribute(k, props[k]); });
+    (kids || []).forEach(function (c) { e.appendChild(c); });
+    return e;
+  }
+  function say(t, ok) { var m = $('msg'); m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); m.hidden = false; m.scrollIntoView({ block: 'nearest' }); }
+  function api(method, path, body, raw) {
+    var h = { 'Authorization': 'Bearer ' + idToken };
+    if (body !== undefined && !raw) h['Content-Type'] = 'application/json';
+    if (raw) h['Content-Type'] = raw;
+    return fetch(path, { method: method, headers: h, body: raw ? body : (body !== undefined ? JSON.stringify(body) : undefined) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, json: j }; }); });
+  }
+  function errText(r) { return (r.json.error && r.json.error.message) || 'เกิดข้อผิดพลาด (' + r.status + ')'; }
+  function markDirty() { dirtyLocal = true; renderStatus(); }
+  window.addEventListener('beforeunload', function (e) { if (dirtyLocal) { e.preventDefault(); e.returnValue = ''; } });
+
+  // ── โหลดรายการ / เลือกเมนู ──
+  function loadList(selectKey) {
+    return api('GET', '/api/admin/richmenus').then(function (r) {
+      if (r.status !== 200) { say(errText(r), false); return; }
+      info = r.json.data;
+      var tabs = $('tabs'); tabs.textContent = '';
+      info.keys.forEach(function (k) {
+        var meta = info.menus.filter(function (m) { return m.key === k; })[0];
+        var b = el('button', { text: (NAMES[k] || k) + (meta && meta.dirty ? ' •' : '') });
+        if (k === (selectKey || key)) b.className = 'on';
+        b.onclick = function () { if (dirtyLocal && !confirm('มีการแก้ไขที่ยังไม่ได้บันทึก — ทิ้งการแก้ไขแล้วเปลี่ยนเมนู?')) return; openMenu(k); };
+        tabs.appendChild(b);
+      });
+      if (!info.menus.length) { say('ยังไม่มีเมนูในระบบ — ต้องนำเข้าชุดเริ่มต้นก่อน (บอกผู้ดูแลเทคนิค)', false); return; }
+      return openMenu(selectKey || key || info.menus[0].key);
+    });
+  }
+  function openMenu(k) {
+    key = k; dirtyLocal = false; selected = -1;
+    return api('GET', '/api/admin/richmenus/' + k).then(function (r) {
+      if (r.status !== 200) { say(errText(r), false); return; }
+      def = r.json.data; if (!def.areas) def.areas = [];
+      return loadImage().then(function () { render(); [].forEach.call($('tabs').children, function (b, i) { b.className = info.keys[i] === k ? 'on' : ''; }); });
+    });
+  }
+  function loadImage() {
+    if (imgUrl) { URL.revokeObjectURL(imgUrl); imgUrl = null; }
+    if (!def.hasImage) return Promise.resolve();
+    return fetch('/api/admin/richmenus/' + key + '/image', { headers: { Authorization: 'Bearer ' + idToken } })
+      .then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) { if (b) imgUrl = URL.createObjectURL(b); });
+  }
+
+  // ── วาดหน้าจอ ──
+  function scale() { return $('stage').clientWidth / def.width; }
+  function render() {
+    $('menuTitle').textContent = NAMES[key] || key;
+    $('count').textContent = def.areas.length;
+    $('chatBar').value = def.chatBarText || '';
+    var sel = $('size'); sel.textContent = '';
+    info.allowedSizes.forEach(function (s) { var o = el('option', { value: s.width + 'x' + s.height, text: s.width + '×' + s.height }); if (s.width === def.width && s.height === def.height) o.selected = true; sel.appendChild(o); });
+    var st = $('stage');
+    var maxW = Math.min(760, document.documentElement.clientWidth - 40);
+    var w = maxW, h = Math.round(maxW * def.height / def.width);
+    st.style.width = w + 'px'; st.style.height = h + 'px';
+    st.className = 'stage' + (imgUrl ? '' : ' noimg');
+    st.style.backgroundImage = imgUrl ? 'url(' + imgUrl + ')' : 'none';
+    $('imgHint').textContent = def.hasImage ? 'ภาพขนาด ' + def.width + '×' + def.height + ' (เปลี่ยนภาพ: ระบบปรับให้พอดีและบีบให้ ≤ 1 MB ให้อัตโนมัติ)' : '⚠️ เมนูนี้ยังไม่มีภาพ (หรือเพิ่งเปลี่ยนขนาด) — กด "เปลี่ยนภาพ" เพื่ออัปโหลดภาพขนาด ' + def.width + '×' + def.height;
+    $('bar').hidden = false;
+    renderAreas(); renderList(); renderStatus();
+  }
+  function renderStatus() {
+    var s = $('status'); s.textContent = '';
+    if (!def.hasImage) s.appendChild(el('span', { class: 'chip none', text: 'ยังไม่มีภาพ' }));
+    else if (dirtyLocal) s.appendChild(el('span', { class: 'chip dirty', text: 'มีการแก้ไขที่ยังไม่บันทึก' }));
+    else if (def.dirty) s.appendChild(el('span', { class: 'chip dirty', text: 'บันทึกแล้ว ยังไม่เผยแพร่' }));
+    else s.appendChild(el('span', { class: 'chip ok', text: 'เผยแพร่แล้ว' }));
+  }
+  function renderAreas() {
+    var st = $('stage'); st.textContent = '';
+    var k = scale();
+    def.areas.forEach(function (a, i) {
+      var box = el('div', { class: 'area' + (i === selected ? ' sel' : '') }, [el('span', { class: 'tag', text: (i + 1) + (a.label ? ' ' + a.label : '') }), el('span', { class: 'h' })]);
+      box.style.left = a.x * k + 'px'; box.style.top = a.y * k + 'px'; box.style.width = a.width * k + 'px'; box.style.height = a.height * k + 'px';
+      bindDrag(box, i);
+      st.appendChild(box);
+    });
+  }
+  function snapV(v) { return $('snap').checked ? Math.round(v / 25) * 25 : Math.round(v); }
+  function clampArea(a) {
+    a.width = Math.max(20, Math.min(def.width, a.width)); a.height = Math.max(20, Math.min(def.height, a.height));
+    a.x = Math.max(0, Math.min(def.width - a.width, a.x)); a.y = Math.max(0, Math.min(def.height - a.height, a.y));
+  }
+  function bindDrag(box, i) {
+    box.addEventListener('pointerdown', function (e) {
+      e.preventDefault(); selected = i;
+      var a = def.areas[i], k = scale(), resizing = e.target.classList.contains('h');
+      var sx = e.clientX, sy = e.clientY, o = { x: a.x, y: a.y, w: a.width, h: a.height };
+      box.setPointerCapture(e.pointerId);
+      [].forEach.call($('stage').children, function (c, j) { c.className = 'area' + (j === i ? ' sel' : ''); });
+      function mv(ev) {
+        var dx = (ev.clientX - sx) / k, dy = (ev.clientY - sy) / k;
+        if (resizing) { a.width = snapV(o.w + dx); a.height = snapV(o.h + dy); } else { a.x = snapV(o.x + dx); a.y = snapV(o.y + dy); }
+        clampArea(a);
+        box.style.left = a.x * k + 'px'; box.style.top = a.y * k + 'px'; box.style.width = a.width * k + 'px'; box.style.height = a.height * k + 'px';
+        syncNums(i);
+      }
+      function up() { box.removeEventListener('pointermove', mv); box.removeEventListener('pointerup', up); box.removeEventListener('pointercancel', up); markDirty(); renderList(); }
+      box.addEventListener('pointermove', mv); box.addEventListener('pointerup', up); box.addEventListener('pointercancel', up);
+    });
+  }
+  function syncNums(i) {
+    var it = $('alist').children[i]; if (!it) return;
+    var a = def.areas[i];
+    ['x', 'y', 'width', 'height'].forEach(function (f) { var inp = it.querySelector('[data-f="' + f + '"]'); if (inp) inp.value = a[f]; });
+  }
+
+  // ── รายการพื้นที่กด (ฟอร์มแก้) ──
+  function numInput(a, f, i) {
+    var inp = el('input', { class: 'num', type: 'number', 'data-f': f, value: a[f] });
+    inp.onchange = function () { a[f] = Math.round(Number(inp.value) || 0); clampArea(a); inp.value = a[f]; markDirty(); renderAreas(); };
+    return el('label', { style: 'font-size:.8rem' }, [document.createTextNode({ x: 'X ', y: 'Y ', width: 'กว้าง ', height: 'สูง ' }[f]), inp]);
+  }
+  function renderList() {
+    var box = $('alist'); box.textContent = ''; $('count').textContent = def.areas.length;
+    def.areas.forEach(function (a, i) {
+      var type = el('select', {}); TYPES.forEach(function (t) { var o = el('option', { value: t[0], text: t[1] }); if (a.action.type === t[0]) o.selected = true; type.appendChild(o); });
+      type.onchange = function () { a.action = defaultAction(type.value); markDirty(); renderList(); };
+      var label = el('input', { class: 'grow', value: a.label || '', placeholder: 'ชื่อปุ่ม (≤20)', maxlength: '20' });
+      label.oninput = function () { a.label = label.value; markDirty(); renderAreas(); };
+      var del = el('button', { class: 'danger', text: 'ลบ' });
+      del.onclick = function () { def.areas.splice(i, 1); selected = -1; markDirty(); renderAreas(); renderList(); };
+      var item = el('div', { class: 'item' + (i === selected ? ' sel' : '') }, [
+        el('div', { class: 'row' }, [el('b', { text: '#' + (i + 1) }), label, type, del]),
+        el('div', { class: 'lbl', text: 'ปลายทาง' }), targetEditor(a),
+        el('div', { class: 'row', style: 'margin-top:6px' }, ['x', 'y', 'width', 'height'].map(function (f) { return numInput(a, f, i); }))
+      ]);
+      item.addEventListener('click', function (e) { if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') return; selected = i; renderAreas(); renderList(); });
+      box.appendChild(item);
+    });
+    if (!def.areas.length) box.appendChild(el('p', { class: 'sub', text: 'ยังไม่มีพื้นที่กด — กด "เพิ่มพื้นที่กด" หรือ "แบ่งช่องเท่าๆ กัน"' }));
+  }
+  function defaultAction(t) {
+    if (t === 'uri') return { type: 'uri', uri: 'https://' };
+    if (t === 'liff') return { type: 'liff', liffId: '', path: '' };
+    if (t === 'tab') { var same = tabTargets(); return { type: 'tab', target: same[0] || '' }; }
+    return { type: 'message', text: 'ยังไม่เปิดใช้งาน' };
+  }
+  function tabTargets() { var set = key === 'guest' ? null : key.split('-')[0]; return set ? info.keys.filter(function (k) { return k.indexOf(set + '-') === 0 && k !== key; }) : []; }
+  function targetEditor(a) {
+    var act = a.action, wrap = el('div', { class: 'row' });
+    function field(prop, ph, w) { var i = el('input', { class: w || 'grow', value: act[prop] || '', placeholder: ph }); i.oninput = function () { act[prop] = i.value.trim(); markDirty(); }; return i; }
+    if (act.type === 'uri') wrap.appendChild(field('uri', 'https://example.com/'));
+    else if (act.type === 'liff') { wrap.appendChild(field('liffId', 'LIFF ID 1234567890-AbCdEfGh')); wrap.appendChild(field('path', '/path (ไม่บังคับ)', 'num')); wrap.lastChild.style.width = '130px'; }
+    else if (act.type === 'message') wrap.appendChild(field('text', 'ข้อความที่จะส่งในแชท'));
+    else {
+      var sel = el('select', { class: 'grow' }); tabTargets().forEach(function (t) { var o = el('option', { value: t, text: NAMES[t] || t }); if (act.target === t) o.selected = true; sel.appendChild(o); });
+      sel.onchange = function () { act.target = sel.value; markDirty(); }; wrap.appendChild(sel);
+    }
+    return wrap;
+  }
+
+  // ── เทมเพลต (เหมือน OA Manager) · พิกัดเป็นสัดส่วน [x, y, กว้าง, สูง] ──
+  var T3 = 1 / 3, T23 = 2 / 3;
+  var TPL = {
+    L: [
+      [[0, 0, T3, .5], [T3, 0, T3, .5], [T23, 0, T3, .5], [0, .5, T3, .5], [T3, .5, T3, .5], [T23, .5, T3, .5]],
+      [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, .5, .5], [.5, .5, .5, .5]],
+      [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, T3, .5], [T3, .5, T3, .5], [T23, .5, T3, .5]],
+      [[0, 0, T23, 1], [T23, 0, T3, .5], [T23, .5, T3, .5]],
+      [[0, 0, 1, .5], [0, .5, 1, .5]],
+      [[0, 0, .5, 1], [.5, 0, .5, 1]],
+      [[0, 0, 1, 1]]
+    ],
+    S: [
+      [[0, 0, T3, 1], [T3, 0, T3, 1], [T23, 0, T3, 1]],
+      [[0, 0, T3, 1], [T3, 0, T23, 1]],
+      [[0, 0, T23, 1], [T23, 0, T3, 1]],
+      [[0, 0, .5, 1], [.5, 0, .5, 1]],
+      [[0, 0, 1, 1]]
+    ]
+  };
+  var SIZES = { L: [[2500, 1686], [1200, 810], [800, 540]], S: [[2500, 843], [1200, 405], [800, 270]] };
+  var tplPick = null;
+  function hasTabBar() { return key !== 'guest' && tabTargets().length > 0; }
+  function buildPreview(cells, w, h, barH) {
+    var pw = 120, ph = Math.round(pw * h / w), top = barH ? Math.round(ph * barH / h) : 0;
+    var pv = el('div', { class: 'pv' }); pv.style.width = pw + 'px'; pv.style.height = ph + 'px';
+    if (top) { var tb = el('i', {}); tb.style.cssText = 'left:0;top:0;width:100%;height:' + top + 'px;background:#dfe6f3'; pv.appendChild(tb); }
+    cells.forEach(function (c) { var i = el('i', {}); i.style.cssText = 'left:' + c[0] * 100 + '%;top:calc(' + top + 'px + ' + c[1] * (ph - top) + 'px);width:' + c[2] * 100 + '%;height:' + c[3] * (ph - top) + 'px'; pv.appendChild(i); });
+    return pv;
+  }
+  function openTemplates() {
+    tplPick = null; $('tplOk').disabled = true;
+    ['L', 'S'].forEach(function (g) {
+      var sizes = $('sizes' + g); sizes.textContent = '';
+      SIZES[g].forEach(function (sz, i) {
+        var cur = sz[0] === def.width && sz[1] === def.height;
+        var inp = el('input', { type: 'radio', name: 'sz' + g, value: sz[0] + 'x' + sz[1] }); if (cur || (!SIZES[g].some(function (z) { return z[0] === def.width && z[1] === def.height; }) && i === 0)) inp.checked = true;
+        inp.onchange = function () { tplPick = tplPick && tplPick.g === g ? tplPick : null; drawTpls(); };
+        sizes.appendChild(el('label', {}, [inp, document.createTextNode(sz[0] + '×' + sz[1] + ' px')]));
+      });
+    });
+    drawTpls();
+    var tb = hasTabBar(); $('keepBarWrap').hidden = !tb; $('keepBar').checked = tb;
+    $('tplNote').textContent = 'เปลี่ยนขนาด = ต้องอัปโหลดภาพใหม่ให้ตรงขนาด · ข้อความ/ปลายทางของปุ่มเดิมจะถูกใช้ต่อตามลำดับ';
+    $('tplModal').hidden = false;
+  }
+  function chosenSize(g) { var v = document.querySelector('input[name="sz' + g + '"]:checked'); return v ? v.value.split('x').map(Number) : SIZES[g][0]; }
+  function drawTpls() {
+    ['L', 'S'].forEach(function (g) {
+      var box = $('tpls' + g); box.textContent = ''; var sz = chosenSize(g);
+      var barH = hasTabBar() && $('keepBar').checked ? Math.round((info.barHeight || 243) * sz[0] / 2500) : 0;
+      TPL[g].forEach(function (cells, i) {
+        var t = el('div', { class: 'tpl' + (tplPick && tplPick.g === g && tplPick.i === i ? ' on' : ''), title: 'เทมเพลต ' + (i + 1) }, [buildPreview(cells, sz[0], sz[1], barH), el('div', { class: 'bar2', text: 'เมนู' })]);
+        t.onclick = function () { tplPick = { g: g, i: i }; $('tplOk').disabled = false; drawTpls(); };
+        box.appendChild(t);
+      });
+    });
+  }
+  $('keepBar').onchange = drawTpls;
+  $('tplBtn').onclick = openTemplates;
+  $('tplCancel').onclick = function () { $('tplModal').hidden = true; };
+  $('tplOk').onclick = function () {
+    if (!tplPick) return;
+    var g = tplPick.g, sz = chosenSize(g), cells = TPL[g][tplPick.i];
+    var resize = sz[0] !== def.width || sz[1] !== def.height;
+    if (resize && def.hasImage && !confirm('ขนาดเมนูจะเปลี่ยนเป็น ' + sz[0] + '×' + sz[1] + ' — ต้องอัปโหลดภาพใหม่ให้ตรงขนาด (ภาพเดิมจะถูกล้างเมื่อบันทึก) ต่อไหม?')) return;
+    var keep = hasTabBar() && $('keepBar').checked, barH = keep ? Math.round((info.barHeight || 243) * sz[0] / 2500) : 0;
+    var oldTabs = def.areas.filter(function (a) { return a.action.type === 'tab'; });
+    var rest = def.areas.filter(function (a) { return a.action.type !== 'tab'; });
+    var out = [];
+    if (keep) {
+      // แถบแท็บ: ใช้ปุ่มสลับแท็บเดิม ถ้าไม่มีสร้างใหม่ครบทุกแท็บของชุด
+      var targets = [key].concat(tabTargets()).sort(function (a, b) { return info.keys.indexOf(a) - info.keys.indexOf(b); });
+      var n = oldTabs.length || targets.length, tw = Math.floor(sz[0] / n);
+      for (var i = 0; i < n; i++) {
+        var o = oldTabs[i];
+        out.push({ x: i * tw, y: 0, width: i === n - 1 ? sz[0] - i * tw : tw, height: barH, label: o ? o.label : '', action: o ? o.action : { type: 'tab', target: targets[i] } });
+      }
+    }
+    var H = sz[1] - barH;
+    cells.forEach(function (c, i) {
+      var x = Math.round(c[0] * sz[0]), y = barH + Math.round(c[1] * H), x2 = Math.round((c[0] + c[2]) * sz[0]), y2 = barH + Math.round((c[1] + c[3]) * H), old = rest[i];
+      out.push({ x: x, y: y, width: x2 - x, height: y2 - y, label: old ? old.label : '', action: old ? old.action : defaultAction('message') });
+    });
+    def.areas = out.slice(0, 20); def.width = sz[0]; def.height = sz[1];
+    if (resize) { def.hasImage = false; if (imgUrl) { URL.revokeObjectURL(imgUrl); imgUrl = null; } }
+    selected = -1; $('tplModal').hidden = true; markDirty(); render();
+  };
+
+  // ── ปุ่มต่างๆ ──
+  $('addArea').onclick = function () {
+    if (def.areas.length >= 20) { say('เพิ่มได้สูงสุด 20 พื้นที่', false); return; }
+    var w = Math.round(def.width / 3), h = Math.round(def.height / 4);
+    def.areas.push({ x: Math.round(def.width / 2 - w / 2), y: Math.round(def.height / 2 - h / 2), width: w, height: h, label: '', action: defaultAction('uri') });
+    selected = def.areas.length - 1; markDirty(); renderAreas(); renderList();
+  };
+  $('gridBtn').onclick = function () { $('gTop').value = key === 'guest' ? 0 : (info.barHeight || 0); $('gridModal').hidden = false; };
+  $('gCancel').onclick = function () { $('gridModal').hidden = true; };
+  $('gOk').onclick = function () {
+    var cols = Math.max(1, Math.min(6, Number($('gCols').value) || 1)), rows = Math.max(1, Math.min(4, Number($('gRows').value) || 1)), top = Math.max(0, Number($('gTop').value) || 0);
+    var cw = Math.floor(def.width / cols), ch = Math.floor((def.height - top) / rows), out = [];
+    // ถ้ามีแถบแท็บ (ปุ่มสลับแท็บเดิม) เก็บไว้บนสุดตามสัดส่วนเดิม ไม่ให้หาย
+    var tabsKept = top > 0 ? def.areas.filter(function (a) { return a.action.type === 'tab'; }) : [];
+    var rest = def.areas.filter(function (a) { return tabsKept.indexOf(a) < 0; });
+    if (tabsKept.length) { var tw = Math.floor(def.width / tabsKept.length); tabsKept.forEach(function (a, i) { a.x = i * tw; a.y = 0; a.width = i === tabsKept.length - 1 ? def.width - i * tw : tw; a.height = top; out.push(a); }); }
+    for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
+      var old = rest[r * cols + c];
+      out.push({ x: c * cw, y: top + r * ch, width: c === cols - 1 ? def.width - c * cw : cw, height: r === rows - 1 ? def.height - top - r * ch : ch, label: old ? old.label : '', action: old ? old.action : defaultAction('message') });
+    }
+    def.areas = out.slice(0, 20); selected = -1; $('gridModal').hidden = true; markDirty(); renderAreas(); renderList();
+  };
+  $('chatBar').oninput = function () { def.chatBarText = $('chatBar').value; markDirty(); };
+  $('size').onchange = function () {
+    var p = $('size').value.split('x').map(Number);
+    if (p[0] === def.width && p[1] === def.height) return;
+    if (!confirm('เปลี่ยนขนาดเมนูเป็น ' + p[0] + '×' + p[1] + ' — พื้นที่กดจะย่อ/ขยายตามสัดส่วน และต้องอัปโหลดภาพใหม่ให้ตรงขนาด (ภาพเดิมจะถูกล้างเมื่อบันทึก) ต่อไหม?')) { render(); return; }
+    var kx = p[0] / def.width, ky = p[1] / def.height;
+    def.areas.forEach(function (a) { a.x = Math.round(a.x * kx); a.y = Math.round(a.y * ky); a.width = Math.max(20, Math.round(a.width * kx)); a.height = Math.max(20, Math.round(a.height * ky)); });
+    def.width = p[0]; def.height = p[1]; def.hasImage = false; if (imgUrl) { URL.revokeObjectURL(imgUrl); imgUrl = null; }
+    markDirty(); render();
+  };
+
+  function body() { return { width: def.width, height: def.height, chat_bar_text: def.chatBarText || 'เมนู', areas: def.areas.map(function (a) { var act = Object.assign({}, a.action); if (act.type === 'liff' && !act.path) delete act.path; return { x: a.x, y: a.y, width: a.width, height: a.height, label: a.label || '', action: act }; }) }; }
+  function save() {
+    return api('PUT', '/api/admin/richmenus/' + key, body()).then(function (r) {
+      if (r.status !== 200) { say(errText(r), false); return false; }
+      def = r.json.data; dirtyLocal = false; say('บันทึกร่างแล้ว (ยังไม่ส่งไป LINE จนกว่าจะกด "เผยแพร่")', true); return loadList(key).then(function () { return true; });
+    });
+  }
+  $('save').onclick = save;
+  $('reload').onclick = function () { if (dirtyLocal && !confirm('ทิ้งการแก้ไขที่ยังไม่บันทึกแล้วโหลดใหม่?')) return; openMenu(key); };
+
+  // เปลี่ยนภาพ: ปรับให้ได้ขนาดตรงเป๊ะ (เติมเต็มแบบ cover) แล้วบีบเป็น JPEG ≤ 1 MB ก่อนอัปโหลด
+  $('pickImage').onclick = function () { $('file').click(); };
+  $('file').onchange = function () {
+    var f = $('file').files[0]; $('file').value = ''; if (!f) return;
+    if (dirtyLocal) { say('กรุณากด "บันทึกร่าง" ก่อนเปลี่ยนภาพ (เพื่อไม่ให้การแก้ไขหาย)', false); return; }
+    var im = new Image(), u = URL.createObjectURL(f);
+    im.onload = function () {
+      var c = document.createElement('canvas'); c.width = def.width; c.height = def.height;
+      var g = c.getContext('2d'), s = Math.max(def.width / im.width, def.height / im.height), w = im.width * s, h = im.height * s;
+      g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, (def.width - w) / 2, (def.height - h) / 2, w, h); URL.revokeObjectURL(u);
+      var q = 0.92;
+      (function tryEnc() {
+        c.toBlob(function (blob) {
+          if (!blob) { say('แปลงภาพไม่สำเร็จ', false); return; }
+          if (blob.size > 1000 * 1000 && q > 0.4) { q -= 0.08; tryEnc(); return; }
+          if (blob.size > 1000 * 1000) { say('ภาพใหญ่เกิน 1 MB แม้บีบแล้ว ลองภาพที่เรียบกว่านี้', false); return; }
+          fetch('/api/admin/richmenus/' + key + '/image', { method: 'PUT', headers: { Authorization: 'Bearer ' + idToken, 'Content-Type': 'image/jpeg' }, body: blob })
+            .then(function (r) { return r.json().then(function (j) { return { status: r.status, json: j }; }); })
+            .then(function (r) { if (r.status === 200) { say('เปลี่ยนภาพแล้ว (' + Math.round(blob.size / 1024) + ' KB)', true); return loadList(key); } say(errText(r), false); });
+        }, 'image/jpeg', q);
+      })();
+    };
+    im.onerror = function () { URL.revokeObjectURL(u); say('เปิดไฟล์ภาพไม่ได้', false); };
+    im.src = u;
+  };
+  $('dlImage').onclick = function () {
+    if (!imgUrl) { say('ยังไม่มีภาพให้ดาวน์โหลด', false); return; }
+    var a = document.createElement('a'); a.href = imgUrl; a.download = key + '.jpg'; a.click();
+  };
+
+  // เผยแพร่
+  $('publish').onclick = function () {
+    if (dirtyLocal) { say('มีการแก้ไขที่ยังไม่บันทึก — กด "บันทึกร่าง" ก่อน', false); return; }
+    $('pubDefault').checked = false; $('pubModal').hidden = false;
+  };
+  $('pubCancel').onclick = function () { $('pubModal').hidden = true; };
+  $('pubOk').onclick = function () {
+    var btn = $('pubOk'); btn.disabled = true; btn.textContent = 'กำลังเผยแพร่…';
+    api('POST', '/api/admin/richmenus/publish', { set_default_guest: $('pubDefault').checked }).then(function (r) {
+      btn.disabled = false; btn.textContent = 'เผยแพร่'; $('pubModal').hidden = true;
+      if (r.status !== 200) { say(errText(r), false); return; }
+      var d = r.json.data;
+      say('เผยแพร่สำเร็จ: สร้างเมนู ' + d.created + ' ชุด · ผูกใหม่ให้ผู้ใช้ ' + d.relink.ok + '/' + d.relink.total + ' คน' + (d.relink.failed ? ' (ล้มเหลว ' + d.relink.failed + ')' : '') + (d.defaultSet ? ' · ตั้ง guest เป็นเมนูเริ่มต้นแล้ว' : ' · ไม่ได้แตะเมนูเริ่มต้นของ OA'), true);
+      loadList(key);
+    });
+  };
+
+  // ── เริ่มต้น ──
+  function deny(t) { $('who').textContent = ''; $('denied').hidden = false; $('deniedText').textContent = t; }
+  if (!window.HUB_CONFIG || !window.HUB_CONFIG.liffId) { deny('ระบบยังไม่ได้ตั้งค่า LIFF'); return; }
+  liff.init({ liffId: window.HUB_CONFIG.liffId }).then(function () {
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    idToken = liff.getIDToken();
+    if (!idToken) { deny('ไม่ได้รับสิทธิ์จาก LINE กรุณาเปิดจากแอป LINE'); return; }
+    return api('GET', '/api/admin/whoami').then(function (r) {
+      if (r.status !== 200) { deny(r.status === 403 ? 'หน้านี้สำหรับ superadmin เท่านั้น' : errText(r)); return; }
+      $('who').textContent = 'เข้าสู่ระบบเป็น ' + r.json.data.actor;
+      $('app').hidden = false; return loadList();
+    });
+  }).catch(function () { deny('เริ่มต้น LINE ไม่สำเร็จ กรุณาเปิดจากแอป LINE'); });
+  window.addEventListener('resize', function () { if (def) { renderAreas(); } });
+})();
+</script>
+</body>
+</html>

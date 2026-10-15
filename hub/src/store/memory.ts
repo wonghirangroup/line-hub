@@ -1,6 +1,6 @@
 // Store ในหน่วยความจำ — ใช้ในเทสต์ และรัน Hub ทดลองในเครื่องโดยไม่ต้องมี DB (HUB_STORE=memory)
 import { randomUUID } from 'node:crypto'
-import type { AppEntry, RequestStatus, RosterRow, Store, User, UserRoleEntry, UserStatus, VerificationRequest } from '../types.js'
+import type { MenuArea, RichMenuDef, AppEntry, RequestStatus, RosterRow, Store, User, UserRoleEntry, UserStatus, VerificationRequest } from '../types.js'
 
 export class MemoryStore implements Store {
   users = new Map<string, User>()
@@ -68,6 +68,27 @@ export class MemoryStore implements Store {
   async recordAttempt(lineUserId: string, success: boolean) { this.attempts.push({ lineUserId, success, at: this.now() }) }
   async countFailedAttempts(lineUserId: string, since: Date) {
     return this.attempts.filter(a => a.lineUserId === lineUserId && !a.success && a.at >= since).length
+  }
+
+  menus = new Map<string, { def: RichMenuDef; image: { type: string; data: Buffer } | null }>()
+  async listRichMenus() { return [...this.menus.values()].map(m => m.def) }
+  async getRichMenu(key: string) { return this.menus.get(key)?.def ?? null }
+  async upsertRichMenu(def: { key: string; width: number; height: number; chatBarText: string; areas: MenuArea[] }, by: string, opts: { clearImage?: boolean } = {}) {
+    const ex = this.menus.get(def.key)
+    const image = opts.clearImage ? null : ex?.image ?? null
+    const d: RichMenuDef = { key: def.key, width: def.width, height: def.height, chatBarText: def.chatBarText, areas: def.areas, hasImage: !!image, imageType: image?.type ?? null, dirty: true, publishedAt: ex?.def.publishedAt ?? null, updatedBy: by }
+    this.menus.set(def.key, { def: d, image })
+    return d
+  }
+  async getRichMenuImage(key: string) { return this.menus.get(key)?.image ?? null }
+  async setRichMenuImage(key: string, type: string, data: Buffer, by: string) {
+    const m = this.menus.get(key)
+    if (!m) throw new Error('menu not found')
+    m.image = { type, data }
+    Object.assign(m.def, { hasImage: true, imageType: type, dirty: true, updatedBy: by })
+  }
+  async markRichMenusPublished(keys: string[]) {
+    for (const k of keys) { const m = this.menus.get(k); if (m) Object.assign(m.def, { dirty: false, publishedAt: this.now() }) }
   }
 
   async listApps() { return [...this.apps.values()].sort((a, b) => a.sortOrder - b.sortOrder) }

@@ -35,12 +35,12 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
 
 // ── ชุดเมนูตามบทบาท (อ่านจาก richmenu.config.json ตัวเดียวกับสคริปต์สร้างเมนู) ──
 export interface MenuSet { alias: string; tabs: string[]; roles: RoleCode[] }
-export interface MenuSets { sets: Record<string, MenuSet> }
+export interface MenuSets { sets: Record<string, MenuSet>; tabs?: { id: string; label: string }[]; tabBarHeight?: number }
 
 export function loadMenuSets(file: string): MenuSets {
-  const cfg = JSON.parse(readFileSync(file, 'utf8')) as { sets: Record<string, MenuSet> }
+  const cfg = JSON.parse(readFileSync(file, 'utf8')) as { sets: Record<string, MenuSet>; tabs?: { id: string; label: string }[]; tabBarHeight?: number }
   if (!cfg.sets) throw new Error(`${file} ไม่มี "sets"`)
-  return { sets: cfg.sets }
+  return { sets: cfg.sets, tabs: cfg.tabs?.map(t => ({ id: t.id, label: t.label })), tabBarHeight: cfg.tabBarHeight }
 }
 
 /** alias ของเมนูแรกของชุดที่บทบาทนี้ควรได้ · admin ชนะ member · ไม่ตรงชุดไหน = null (ใช้เมนู guest) */

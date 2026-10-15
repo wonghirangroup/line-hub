@@ -47,6 +47,26 @@ export interface VerificationRequest {
   createdAt: Date
 }
 
+// ── Rich Menu ที่แก้ได้จากหน้าเว็บ ──
+export type MenuAction =
+  | { type: 'uri'; uri: string }
+  | { type: 'liff'; liffId: string; path?: string }
+  | { type: 'tab'; target: string } // สลับไปแท็บอื่นในชุดเดียวกัน (target = คีย์เมนู เช่น member-web)
+  | { type: 'message'; text: string }
+export interface MenuArea { x: number; y: number; width: number; height: number; label: string; action: MenuAction }
+export interface RichMenuDef {
+  key: string
+  width: number
+  height: number
+  chatBarText: string
+  areas: MenuArea[]
+  hasImage: boolean
+  imageType: string | null
+  dirty: boolean // แก้ไขแล้วแต่ยังไม่เผยแพร่
+  publishedAt: Date | null
+  updatedBy: string | null
+}
+
 export interface RosterRow { employeeCode: string; displayName: string; phone: string; roles?: RoleCode[] }
 
 export interface Store {
@@ -71,6 +91,13 @@ export interface Store {
   // attempts (กันเดารหัสพนักงาน/เบอร์)
   recordAttempt(lineUserId: string, success: boolean): Promise<void>
   countFailedAttempts(lineUserId: string, since: Date): Promise<number>
+  // rich menus
+  listRichMenus(): Promise<RichMenuDef[]>
+  getRichMenu(key: string): Promise<RichMenuDef | null>
+  upsertRichMenu(def: { key: string; width: number; height: number; chatBarText: string; areas: MenuArea[] }, by: string, opts?: { clearImage?: boolean }): Promise<RichMenuDef>
+  getRichMenuImage(key: string): Promise<{ type: string; data: Buffer } | null>
+  setRichMenuImage(key: string, type: string, data: Buffer, by: string): Promise<void>
+  markRichMenusPublished(keys: string[]): Promise<void>
   // apps
   listApps(): Promise<AppEntry[]>
   upsertApp(app: Omit<AppEntry, 'id'>): Promise<AppEntry>
@@ -84,6 +111,15 @@ export interface LineApi {
   getAliasMenuId(alias: string): Promise<string | null>
   linkMenu(lineUserId: string, richMenuId: string): Promise<void>
   unlinkMenu(lineUserId: string): Promise<void>
+  // จัดการตัวเมนูใน OA (ใช้ตอนเผยแพร่)
+  listMenus(): Promise<{ richMenuId: string; name: string }[]>
+  createMenu(body: unknown): Promise<string>
+  uploadMenuImage(richMenuId: string, data: Buffer, contentType: string): Promise<void>
+  deleteMenu(richMenuId: string): Promise<void>
+  listAliases(): Promise<{ richMenuAliasId: string; richMenuId: string }[]>
+  createAlias(alias: string, richMenuId: string): Promise<void>
+  deleteAlias(alias: string): Promise<void>
+  setDefaultMenu(richMenuId: string): Promise<void>
 }
 
 export class HttpError extends Error {

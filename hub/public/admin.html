@@ -46,6 +46,7 @@
 <main>
   <h1>จัดการผู้ใช้ LINE Hub</h1>
   <div class="who" id="who">กำลังตรวจสอบสิทธิ์…</div>
+  <p class="who"><a href="/verify/admin/menu" style="color:var(--blue);font-weight:700">🎛️ แก้ไขเมนู LINE (ภาพ / พื้นที่กด / ขนาด) →</a></p>
   <div class="card" id="denied" hidden><h2>เข้าไม่ได้</h2><p id="deniedText">หน้านี้สำหรับ superadmin เท่านั้น</p></div>
 
   <div id="app" hidden>
@@ -61,6 +62,36 @@
         <button class="alt" id="issueAll">ออกรหัสให้ทุกคนที่ยังไม่ผูก</button>
       </div>
       <div id="users"></div>
+    </div>
+
+    <div class="card" id="appsCard">
+      <h2>ระบบ / แอปใน ALL APP</h2>
+      <p class="meta">เพิ่มเว็บไซต์ LIFF หรือระบบใหม่ได้ที่นี่ ไม่ต้องแก้โค้ด — แต่ละรายการจะเป็น 1 การ์ดในหน้า ALL APP ตามสิทธิ์ที่กำหนด (ปุ่มในเมนู LINE แก้ที่ไฟล์ตั้งค่าเมนู)</p>
+      <div id="apps"></div>
+      <div class="row" style="margin-top:10px"><button id="addApp">+ เพิ่มระบบ</button></div>
+      <form id="appForm" hidden style="margin-top:12px" novalidate>
+        <div class="row">
+          <input class="grow" id="aName" placeholder="ชื่อที่แสดง เช่น Workpath" maxlength="120" aria-label="ชื่อ">
+          <input id="aIcon" placeholder="ไอคอน 🧩" maxlength="8" style="width:90px" aria-label="ไอคอน">
+        </div>
+        <div class="row" style="margin-top:8px">
+          <input class="grow" id="aCode" placeholder="รหัสระบบ (a-z 0-9 -) เช่น workpath" maxlength="59" aria-label="รหัสระบบ">
+          <select id="aType" aria-label="ชนิด"><option value="uri">เปิดลิงก์เว็บ</option><option value="liff">เปิดผ่าน LIFF</option></select>
+        </div>
+        <div style="margin-top:8px"><input id="aTarget" placeholder="https://… (ลิงก์) หรือ LIFF ID" aria-label="ปลายทาง"></div>
+        <div class="row" style="margin-top:8px">
+          <select class="grow" id="aRole" aria-label="ใครเห็น">
+            <option value="">ผู้ใช้ที่ยืนยันตัวตนแล้วทุกคน</option>
+            <option value="guest">ทุกคน (รวมคนที่ยังไม่ยืนยัน)</option>
+            <option value="admin">เฉพาะ admin ขึ้นไป (admin)</option>
+            <option value="superadmin">เฉพาะ superadmin</option>
+            <option value="driver">เฉพาะ driver</option>
+          </select>
+          <input id="aSort" type="number" min="0" max="9999" value="10" style="width:90px" aria-label="ลำดับ" title="ลำดับ (น้อยไปมาก)">
+          <label style="display:inline-flex;align-items:center;gap:4px"><input id="aActive" type="checkbox" checked style="width:auto"> เปิดใช้งาน</label>
+        </div>
+        <div class="row" style="margin-top:10px"><button type="submit">บันทึกระบบ</button><button type="button" class="alt" id="cancelApp">ยกเลิก</button></div>
+      </form>
     </div>
 
     <div class="card">
@@ -188,6 +219,51 @@
     });
   }
 
+  // ── ระบบ / แอป ──
+  var apps = [];
+  var ROLE_LABEL = { '': 'ผู้ใช้ที่ยืนยันแล้ว', guest: 'ทุกคน', staff: 'staff', driver: 'driver', admin: 'admin ขึ้นไป', superadmin: 'superadmin' };
+  function loadApps() {
+    return api('GET', '/api/admin/apps').then(function (r) { if (r.status === 200) { apps = r.json.data; renderApps(); } else say(errText(r), false); });
+  }
+  function renderApps() {
+    var box = $('apps'); box.textContent = '';
+    apps.forEach(function (a) {
+      var edit = el('button', { class: 'alt', text: 'แก้ไข' });
+      edit.onclick = function () { openAppForm(a); };
+      var chips = el('div', {}, [
+        el('span', { class: 'chip role', text: a.type === 'liff' ? 'LIFF' : 'ลิงก์' }),
+        el('span', { class: 'chip ' + (a.active ? 'ACTIVE' : 'INACTIVE'), text: a.active ? 'เปิดใช้งาน' : 'ปิดอยู่' }),
+        el('span', { class: 'chip INVITED', text: ROLE_LABEL[a.requiredRole || ''] || a.requiredRole })
+      ]);
+      box.appendChild(el('div', { class: 'user' }, [
+        el('div', { class: 'name', text: (a.icon ? a.icon + ' ' : '') + a.name }),
+        el('div', { class: 'meta', text: a.code + ' · ' + (a.type === 'liff' ? a.liffId : a.url) }),
+        chips, el('div', { style: 'height:8px' }), el('div', { class: 'row' }, [edit])
+      ]));
+    });
+    if (!apps.length) box.appendChild(el('p', { class: 'meta', text: 'ยังไม่มีระบบ — กด "เพิ่มระบบ"' }));
+  }
+  function openAppForm(a) {
+    var f = $('appForm'); f.hidden = false; f.dataset.editing = a ? '1' : '';
+    $('aName').value = a ? a.name : ''; $('aIcon').value = a ? (a.icon || '') : '';
+    $('aCode').value = a ? a.code : ''; $('aCode').disabled = !!a;
+    $('aType').value = a ? a.type : 'uri'; $('aTarget').value = a ? (a.type === 'liff' ? a.liffId : a.url) || '' : '';
+    $('aRole').value = a ? (a.requiredRole || '') : ''; $('aSort').value = a ? a.sortOrder : 10; $('aActive').checked = a ? a.active : true;
+    f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  $('addApp').onclick = function () { openAppForm(null); };
+  $('cancelApp').onclick = function () { $('appForm').hidden = true; };
+  $('appForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var type = $('aType').value, target = $('aTarget').value.trim(), code = $('aCode').value.trim().toLowerCase();
+    if (!$('aName').value.trim() || !code || !target) { say('กรอกชื่อ รหัสระบบ และปลายทางให้ครบ', false); return; }
+    var body = { name: $('aName').value.trim(), type: type, icon: $('aIcon').value.trim() || null, required_role: $('aRole').value || null, sort_order: Number($('aSort').value) || 0, active: $('aActive').checked };
+    if (type === 'liff') body.liff_id = target; else body.url = target;
+    api('PUT', '/api/admin/apps/' + encodeURIComponent(code), body).then(function (r) {
+      if (r.status === 200) { say('บันทึกระบบแล้ว', true); $('appForm').hidden = true; loadApps(); } else say(errText(r), false);
+    });
+  });
+
   $('search').addEventListener('input', renderUsers);
 
   $('import').onclick = function () {
@@ -226,7 +302,7 @@
     return api('GET', '/api/admin/whoami').then(function (r) {
       if (r.status !== 200) { $('who').textContent = ''; $('denied').hidden = false; $('deniedText').textContent = r.status === 403 ? 'หน้านี้สำหรับ superadmin เท่านั้น' : errText(r); return; }
       $('who').textContent = 'เข้าสู่ระบบเป็น ' + r.json.data.actor;
-      $('app').hidden = false; return load();
+      $('app').hidden = false; return Promise.all([load(), loadApps()]);
     });
   }).catch(function () { $('who').textContent = ''; $('denied').hidden = false; $('deniedText').textContent = 'เริ่มต้น LINE ไม่สำเร็จ กรุณาเปิดจากแอป LINE'; });
 })();

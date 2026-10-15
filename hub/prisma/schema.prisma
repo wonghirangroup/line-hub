@@ -122,3 +122,22 @@ model NotificationLog {
 
   @@map("notification_log")
 }
+
+// เมนู LINE ที่แก้ได้จากหน้าเว็บ (ภาพ + พื้นที่กด) — เผยแพร่ไป LINE ด้วยปุ่ม "เผยแพร่"
+model RichMenu {
+  id            String    @id @default(uuid())
+  menu_key      String    @unique // member-staff | member-web | admin-staff | admin-admin | admin-web | guest
+  width         Int
+  height        Int
+  chat_bar_text String
+  areas         Json
+  image         Bytes?    @db.MediumBlob
+  image_type    String?
+  dirty         Boolean   @default(true) // แก้ไขแล้วแต่ยังไม่เผยแพร่
+  published_at  DateTime?
+  updated_by    String?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@map("rich_menus")
+}

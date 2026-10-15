@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify'
 import { z, ZodError } from 'zod'
+import { MenuBodySchema, type MenuService } from './menu-service.js'
 import { normalizeCode, normalizePhone, type HubService } from './service.js'
 import { HttpError, ROLE_CODES, type LineApi, type LineIdentity, type RoleCode, type RosterRow, type Store, type User } from './types.js'
 
@@ -11,6 +12,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 export interface AppDeps {
   service: HubService
+  menus: MenuService
   store: Store
   line: LineApi
   channelSecret: string
@@ -46,6 +48,9 @@ export function buildApp(d: AppDeps): FastifyInstance {
   app.addHook('onSend', async (req, reply) => {
     if (req.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store')
   })
+
+  // อัปโหลดภาพเมนู: ส่งไบต์ภาพตรงๆ (Content-Type: image/jpeg | image/png)
+  app.addContentTypeParser(['image/jpeg', 'image/png'], { parseAs: 'buffer', bodyLimit: 1_300_000 }, (_req, body, done) => done(null, body))
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof HttpError) return reply.code(err.status).send({ success: false, error: { code: err.code, message: err.message } })
@@ -98,15 +103,17 @@ export function buildApp(d: AppDeps): FastifyInstance {
   const page = (file: string) => readFileSync(path.resolve(HERE, '..', 'public', file), 'utf8')
   const verifyHtml = page('verify.html')
   const adminHtml = page('admin.html')
+  const menuHtml = page('menu.html')
   const sendPage = (reply: FastifyReply, html: string) => reply
     .header('Content-Type', 'text/html; charset=utf-8')
     .header('Cache-Control', 'no-store')
     .header('X-Frame-Options', 'DENY')
-    .header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.line-scdn.net; connect-src 'self' https://*.line.me https://*.line-scdn.net; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'")
+    .header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.line-scdn.net; connect-src 'self' https://*.line.me https://*.line-scdn.net; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'")
     .send(html)
   app.get('/verify', async (_req, reply) => sendPage(reply, verifyHtml))
   // หน้าจัดการสำหรับ superadmin — เปิดผ่าน LIFF เดียวกัน: https://liff.line.me/<LIFF ID>/admin (LINE ต่อ path ท้าย endpoint)
   app.get('/verify/admin', async (_req, reply) => sendPage(reply, adminHtml))
+  app.get('/verify/admin/menu', async (_req, reply) => sendPage(reply, menuHtml))
   app.get('/verify/config.js', async (_req, reply) => {
     reply.header('Content-Type', 'application/javascript; charset=utf-8').send(`window.HUB_CONFIG = ${JSON.stringify({ liffId: d.verifyLiffId })};`)
   })
@@ -198,15 +205,56 @@ export function buildApp(d: AppDeps): FastifyInstance {
       ok(await d.service.reject(z.object({ id: z.string() }).parse(req.params).id, adminName(req))))
 
     s.get('/api/admin/apps', async () => ok(await d.store.listApps()))
+    // เพิ่ม/แก้ระบบที่จะโชว์เป็นการ์ดใน ALL APP (ปิดใช้งานด้วย active=false แทนการลบ)
     s.put('/api/admin/apps/:code', async req => {
-      const { code } = z.object({ code: z.string().min(1).max(60) }).parse(req.params)
+      const { code } = z.object({ code: z.string().regex(/^[a-z0-9][a-z0-9-]{0,58}$/, 'code ใช้ a-z 0-9 และ - เท่านั้น') }).parse(req.params)
       const b = z.object({
-        name: z.string().min(1).max(120), type: z.enum(['liff', 'uri']),
-        url: z.string().url().nullable().optional(), liff_id: z.string().nullable().optional(),
-        icon: z.string().max(20).nullable().optional(), required_role: z.string().nullable().optional(),
-        sort_order: z.number().int().default(0), active: z.boolean().default(true),
+        name: z.string().trim().min(1).max(120),
+        type: z.enum(['liff', 'uri']),
+        url: z.string().trim().url().refine(u => u.startsWith('https://'), 'URL ต้องขึ้นต้นด้วย https://').nullable().optional(),
+        liff_id: z.string().trim().regex(/^\d{10}-[A-Za-z0-9]{8}$/, 'LIFF ID ต้องหน้าตาแบบ 1234567890-AbCdEfGh').nullable().optional(),
+        icon: z.string().max(20).nullable().optional(),
+        // null = ผู้ใช้ที่ยืนยันตัวตนแล้วทุกคน · guest = ทุกคนรวมคนที่ยังไม่ยืนยัน
+        required_role: z.enum(['guest', 'staff', 'driver', 'admin', 'superadmin']).nullable().optional(),
+        sort_order: z.number().int().min(0).max(9999).default(0),
+        active: z.boolean().default(true),
+      }).superRefine((v, ctx) => {
+        if (v.type === 'liff' && !v.liff_id) ctx.addIssue({ code: 'custom', path: ['liff_id'], message: 'ระบบแบบ LIFF ต้องมี LIFF ID' })
+        if (v.type === 'uri' && !v.url) ctx.addIssue({ code: 'custom', path: ['url'], message: 'ระบบแบบลิงก์ต้องมี URL' })
       }).parse(req.body)
-      return ok(await d.store.upsertApp({ code, name: b.name, type: b.type, url: b.url ?? null, liffId: b.liff_id ?? null, icon: b.icon ?? null, requiredRole: b.required_role ?? null, sortOrder: b.sort_order, active: b.active }))
+      return ok(await d.store.upsertApp({ code, name: b.name, type: b.type, url: b.type === 'uri' ? (b.url ?? null) : null, liffId: b.type === 'liff' ? (b.liff_id ?? null) : null, icon: b.icon ?? null, requiredRole: b.required_role ?? null, sortOrder: b.sort_order, active: b.active }))
+    })
+
+    // ── ตัวแก้ Rich Menu ──
+    s.get('/api/admin/richmenus', async () => ok(await d.menus.list()))
+    s.get('/api/admin/richmenus/:key', async req => ok(await d.menus.get(z.object({ key: z.string() }).parse(req.params).key)))
+    s.put('/api/admin/richmenus/:key', async req => {
+      const { key } = z.object({ key: z.string() }).parse(req.params)
+      return ok(await d.menus.save(key, MenuBodySchema.parse(req.body), adminName(req)))
+    })
+    s.get('/api/admin/richmenus/:key/image', async (req, reply) => {
+      const { key } = z.object({ key: z.string() }).parse(req.params)
+      const img = await d.store.getRichMenuImage(key)
+      if (!img) throw new HttpError(404, 'ยังไม่มีภาพ', 'NOT_FOUND')
+      return reply.header('Content-Type', img.type).header('Cache-Control', 'no-store').send(img.data)
+    })
+    s.put('/api/admin/richmenus/:key/image', async req => {
+      const { key } = z.object({ key: z.string() }).parse(req.params)
+      if (!Buffer.isBuffer(req.body)) throw new HttpError(415, 'ส่งภาพเป็น image/jpeg หรือ image/png', 'BAD_CONTENT_TYPE')
+      await d.menus.saveImage(key, req.body, adminName(req))
+      return ok(await d.menus.get(key))
+    })
+    // นำเข้าชุดเริ่มต้นจากไฟล์ตั้งค่า (สคริปต์ตั้งต้น) — ไม่ทับเมนูที่มีแล้ว เว้นแต่ overwrite=true
+    s.post('/api/admin/richmenus/import', { bodyLimit: 12 * 1024 * 1024 }, async req => {
+      const b = z.object({
+        overwrite: z.boolean().default(false),
+        menus: z.array(z.object({ key: z.string(), body: MenuBodySchema, image_base64: z.string().optional() })).min(1).max(20),
+      }).parse(req.body)
+      return ok(await d.menus.importMenus(b.menus.map(m => ({ key: m.key, body: m.body, image: m.image_base64 ? Buffer.from(m.image_base64, 'base64') : undefined })), adminName(req), b.overwrite))
+    })
+    s.post('/api/admin/richmenus/publish', async req => {
+      const b = z.object({ set_default_guest: z.boolean().default(false) }).parse(req.body ?? {})
+      return ok(await d.menus.publish(adminName(req), { setDefaultGuest: b.set_default_guest }))
     })
 
     s.post('/api/admin/relink-all', async () => ok(await d.service.relinkAll()))

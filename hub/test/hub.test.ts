@@ -2,6 +2,8 @@ import { createHmac } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { loadMenuSets } from '../src/config.js'
+import { imageInfo } from '../src/image.js'
+import { MenuService } from '../src/menu-service.js'
 import { canAccess, checkActivation, generateActivationCode, hashActivation, HubService, normalizePhone } from '../src/service.js'
 import { MemoryStore } from '../src/store/memory.js'
 import { HttpError, type LineApi, type LineIdentity } from '../src/types.js'
@@ -21,6 +23,34 @@ class FakeLine implements LineApi {
   async getAliasMenuId(alias: string) { return this.aliases.has(alias) ? `menu:${alias}` : null }
   async linkMenu(uid: string, menuId: string) { if (this.failLink) throw new Error('LINE down'); this.links.set(uid, menuId) }
   async unlinkMenu(uid: string) { this.links.delete(uid) }
+  // ── จำลองตัวเมนูใน OA ──
+  oa = new Map<string, { name: string; body: any; image?: Buffer }>()
+  aliasMap = new Map<string, string>()
+  defaultId: string | null = null
+  failUpload = false
+  private n = 0
+  async listMenus() { return [...this.oa].map(([richMenuId, m]) => ({ richMenuId, name: m.name })) }
+  async createMenu(body: any) { const id = 'rm' + ++this.n; this.oa.set(id, { name: body.name, body }); return id }
+  async uploadMenuImage(id: string, data: Buffer) { if (this.failUpload) throw new Error('upload failed'); this.oa.get(id)!.image = data }
+  async deleteMenu(id: string) { this.oa.delete(id) }
+  async listAliases() { return [...this.aliasMap].map(([richMenuAliasId, richMenuId]) => ({ richMenuAliasId, richMenuId })) }
+  async createAlias(alias: string, id: string) { if (this.aliasMap.has(alias)) throw new Error('alias exists'); this.aliasMap.set(alias, id); this.aliases.add(alias) }
+  async deleteAlias(alias: string) { this.aliasMap.delete(alias) }
+  async setDefaultMenu(id: string) { this.defaultId = id }
+}
+
+/** ภาพจำลอง: มีเฉพาะส่วนหัวที่บอกขนาด (พอให้ imageInfo อ่านได้) */
+function png(w: number, h: number, pad = 2000) {
+  const b = Buffer.alloc(33 + pad)
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(b, 0)
+  b.writeUInt32BE(13, 8); b.write('IHDR', 12); b.writeUInt32BE(w, 16); b.writeUInt32BE(h, 20)
+  return b
+}
+function jpeg(w: number, h: number) {
+  const b = Buffer.alloc(30)
+  b[0] = 0xff; b[1] = 0xd8; b[2] = 0xff; b[3] = 0xc0; b.writeUInt16BE(17, 4); b[6] = 8
+  b.writeUInt16BE(h, 7); b.writeUInt16BE(w, 9)
+  return b
 }
 
 const tok = (uid: string, name = 'สมหญิง') => ({ authorization: `Bearer tok:${uid}:${name}` })
@@ -33,8 +63,9 @@ function setup(opts: { requireApproval?: boolean } = {}) {
   const line = new FakeLine()
   const menu = loadMenuSets(new URL('../../richmenu.config.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
   const service = new HubService(store, line, menu, { now: () => new Date(clock.t), requireApproval: opts.requireApproval })
-  const app = buildApp({ service, store, line, channelSecret: SECRET, adminToken: ADMIN, verifyLiffId: '2010195603-test', corsOrigins: ['https://allapp.example'] })
-  return { store, line, service, app, clock }
+  const menus = new MenuService(store, line, menu, service)
+  const app = buildApp({ service, menus, store, line, channelSecret: SECRET, adminToken: ADMIN, verifyLiffId: '2010195603-test', corsOrigins: ['https://allapp.example'] })
+  return { store, line, service, menus, app, clock }
 }
 type T = ReturnType<typeof setup>
 
@@ -409,6 +440,193 @@ describe('/me และรายการระบบ', () => {
   it('normalizePhone', () => {
     expect(normalizePhone('081-234-5678')).toBe('0812345678')
     expect(normalizePhone('+66 81 234 5678')).toBe('0812345678')
+  })
+})
+
+describe('ตัวแก้ Rich Menu', () => {
+  const SET_KEYS = ['member-staff', 'member-web', 'admin-staff', 'admin-admin', 'admin-web', 'guest']
+  const sizeOf = (k: string) => (k === 'guest' ? { width: 2500, height: 843 } : { width: 2500, height: 1686 })
+  const area = (x: number, y: number, w: number, h: number, action: Record<string, unknown>, label = 'ปุ่ม') => ({ x, y, width: w, height: h, label, action })
+  const body = (k: string, areas: unknown[]) => ({ ...sizeOf(k), chat_bar_text: 'เมนู SJ', areas })
+  const baseAreas = (k: string) => {
+    const tab = k.startsWith('member') ? 'member' : k.startsWith('admin') ? 'admin' : null
+    const top = tab ? 243 : 0
+    const a = [
+      area(0, top, 800, 600, { type: 'uri', uri: 'https://ok.example/' }, 'ลิงก์'),
+      area(800, top, 800, 600, { type: 'liff', liffId: '2010057364-BtB7eW1f', path: '/leave' }, 'วันลา'),
+      area(1600, top, 800, 600, { type: 'message', text: 'ยังไม่เปิดใช้งาน' }, 'ยังไม่เปิด'),
+    ]
+    if (tab) a.push(area(0, 0, 833, 243, { type: 'tab', target: tab + '-' + (tab === 'member' ? 'web' : 'admin') }, 'สลับ'))
+    return a
+  }
+  const seed = async (t: T, withImages = true) => {
+    const r = await t.app.inject({
+      method: 'POST', url: '/api/admin/richmenus/import', headers: adm,
+      payload: { menus: SET_KEYS.map(k => ({ key: k, body: body(k, baseAreas(k)), image_base64: withImages ? png(sizeOf(k).width, sizeOf(k).height).toString('base64') : undefined })) },
+    })
+    expect(r.statusCode).toBe(200)
+    return r.json().data as { imported: number; skipped: number }
+  }
+  const imageUrl = (k: string) => '/api/admin/richmenus/' + k + '/image'
+
+  it('อ่านขนาดภาพ PNG/JPEG ได้ และปฏิเสธไฟล์ที่ไม่ใช่ภาพ', () => {
+    expect(imageInfo(png(2500, 1686))).toEqual({ type: 'image/png', width: 2500, height: 1686 })
+    expect(imageInfo(jpeg(2500, 843))).toEqual({ type: 'image/jpeg', width: 2500, height: 843 })
+    expect(imageInfo(Buffer.from('hello world, not an image at all'))).toBeNull()
+  })
+
+  it('นำเข้าชุดเริ่มต้น แล้วดู/แก้ได้ · นำเข้าซ้ำไม่ทับของที่แก้แล้ว', async () => {
+    const t = setup()
+    expect(await seed(t)).toEqual({ imported: 6, skipped: 0 })
+    expect(await seed(t)).toEqual({ imported: 0, skipped: 6 })
+    const list = (await t.app.inject({ method: 'GET', url: '/api/admin/richmenus', headers: adm })).json().data
+    expect(list.menus.map((m: { key: string }) => m.key)).toEqual(SET_KEYS)
+    expect(list.allowedSizes.length).toBe(6)
+    expect(list.menus.every((m: { hasImage: boolean }) => m.hasImage)).toBe(true)
+
+    const edit = await t.app.inject({ method: 'PUT', url: '/api/admin/richmenus/member-staff', headers: adm, payload: body('member-staff', [area(10, 300, 900, 700, { type: 'uri', uri: 'https://new.example/' }, 'ใหม่')]) })
+    expect(edit.statusCode).toBe(200)
+    expect(edit.json().data.dirty).toBe(true)
+    expect(edit.json().data.areas.length).toBe(1)
+    expect(edit.json().data.hasImage).toBe(true) // ขนาดเท่าเดิม ภาพยังอยู่
+    expect(await seed(t)).toEqual({ imported: 0, skipped: 6 })
+    expect((await t.app.inject({ method: 'GET', url: '/api/admin/richmenus/member-staff', headers: adm })).json().data.areas[0].label).toBe('ใหม่')
+  })
+
+  it('ตรวจข้อมูลก่อนบันทึก: ขนาด LINE · เกินขอบภาพ · tab ข้ามชุด · http · LIFF ID · เกิน 20 พื้นที่ · เมนูที่ไม่รู้จัก', async () => {
+    const t = setup(); await seed(t)
+    const put = (k: string, p: unknown) => t.app.inject({ method: 'PUT', url: '/api/admin/richmenus/' + k, headers: adm, payload: p })
+    const ok = area(0, 0, 100, 100, { type: 'uri', uri: 'https://ok.example/' })
+    expect((await put('member-staff', { ...body('member-staff', [ok]), width: 1000, height: 1000 })).json().error.code).toBe('BAD_SIZE')
+    expect((await put('member-staff', body('member-staff', [area(2450, 0, 100, 100, { type: 'uri', uri: 'https://ok.example/' })]))).json().error.code).toBe('AREA_OUT_OF_BOUNDS')
+    expect((await put('member-staff', body('member-staff', [area(0, 0, 100, 100, { type: 'tab', target: 'admin-admin' })]))).json().error.code).toBe('BAD_TAB_TARGET')
+    expect((await put('guest', body('guest', [area(0, 0, 100, 100, { type: 'tab', target: 'member-web' })]))).json().error.code).toBe('BAD_TAB_TARGET')
+    expect((await put('member-staff', body('member-staff', [area(0, 0, 100, 100, { type: 'uri', uri: 'http://insecure.example' })]))).statusCode).toBe(400)
+    expect((await put('member-staff', body('member-staff', [area(0, 0, 100, 100, { type: 'liff', liffId: 'abc' })]))).statusCode).toBe(400)
+    expect((await put('member-staff', body('member-staff', Array.from({ length: 21 }, () => ok)))).statusCode).toBe(400)
+    expect((await put('nope', body('guest', [ok]))).json().error.code).toBe('UNKNOWN_MENU')
+    expect((await put('member-staff', { ...body('member-staff', [ok]), chat_bar_text: 'ยาวเกินสิบสี่ตัวอักษรแน่นอน' })).statusCode).toBe(400)
+  })
+
+  it('อัปโหลดภาพ: ขนาดต้องพอดี · ≤ 1 MB · ต้องเป็นภาพ · เปลี่ยนขนาดเมนูแล้วภาพเดิมถูกล้าง', async () => {
+    const t = setup(); await seed(t, false)
+    const up = (k: string, buf: Buffer, type = 'image/png') => t.app.inject({ method: 'PUT', url: imageUrl(k), headers: { ...adm, 'content-type': type }, payload: buf })
+    expect((await up('member-staff', png(2500, 843))).json().error.code).toBe('BAD_IMAGE_SIZE')
+    expect((await up('member-staff', Buffer.from('not an image'))).json().error.code).toBe('BAD_IMAGE')
+    expect((await up('member-staff', png(2500, 1686, 1_100_000))).statusCode).toBe(413)
+    const good = await up('member-staff', png(2500, 1686))
+    expect(good.statusCode).toBe(200)
+    expect(good.json().data.hasImage).toBe(true)
+    expect(good.json().data.imageType).toBe('image/png')
+    const got = await t.app.inject({ method: 'GET', url: imageUrl('member-staff'), headers: adm })
+    expect(got.headers['content-type']).toBe('image/png')
+    expect(imageInfo(got.rawPayload)?.width).toBe(2500)
+    const resized = await t.app.inject({ method: 'PUT', url: '/api/admin/richmenus/member-staff', headers: adm, payload: { width: 2500, height: 843, chat_bar_text: 'เมนู', areas: [area(0, 0, 100, 100, { type: 'uri', uri: 'https://ok.example/' })] } })
+    expect(resized.json().data.hasImage).toBe(false)
+    expect((await t.app.inject({ method: 'GET', url: imageUrl('member-staff'), headers: adm })).statusCode).toBe(404)
+  })
+
+  it('เผยแพร่: ต้องมีภาพครบก่อน · สร้างเมนู/alias ใหม่ ลบของเก่า ไม่แตะ default · แปลงปุ่มถูกชนิด · ผูกเมนูผู้ใช้ใหม่', async () => {
+    const t = setup(); await seed(t, false)
+    const notReady = await t.app.inject({ method: 'POST', url: '/api/admin/richmenus/publish', headers: adm, payload: {} })
+    expect(notReady.statusCode).toBe(409)
+    expect(notReady.json().error.message).toContain('member-staff: ยังไม่มีภาพ')
+
+    for (const k of SET_KEYS) {
+      const r = await t.app.inject({ method: 'PUT', url: imageUrl(k), headers: { ...adm, 'content-type': 'image/jpeg' }, payload: jpeg(sizeOf(k).width, sizeOf(k).height) })
+      expect(r.statusCode).toBe(200)
+    }
+    await importRoster(t)
+    await onboard(t, 'U1', 'E001', '0812345678')
+    t.line.oa.set('old1', { name: 'sjhub:member-staff', body: {} }) // เมนูเก่าของเรา → ต้องถูกลบ
+    t.line.oa.set('other', { name: 'จาก OA Manager', body: {} }) // เมนูอื่นของ OA → ต้องไม่ถูกแตะ
+    t.line.aliasMap.set('tab-m-staff', 'old1')
+
+    const pub = await t.app.inject({ method: 'POST', url: '/api/admin/richmenus/publish', headers: adm, payload: {} })
+    expect(pub.statusCode).toBe(200)
+    expect(pub.json().data).toMatchObject({ created: 6, aliases: 5, deletedOld: 1, defaultSet: false, relink: { total: 1, ok: 1, failed: 0 } })
+    expect(t.line.oa.has('old1')).toBe(false)
+    expect(t.line.oa.has('other')).toBe(true)
+    expect(t.line.defaultId).toBeNull()
+    expect([...t.line.aliasMap.keys()].sort()).toEqual(['tab-a-admin', 'tab-a-staff', 'tab-a-web', 'tab-m-staff', 'tab-m-web'])
+
+    const ms = [...t.line.oa.values()].find(m => m.name === 'sjhub:member-staff')!
+    const acts = ms.body.areas.map((a: { action: Record<string, string> }) => a.action)
+    expect(acts[0]).toMatchObject({ type: 'uri', uri: 'https://ok.example/' })
+    expect(acts[1]).toMatchObject({ type: 'uri', uri: 'https://liff.line.me/2010057364-BtB7eW1f/leave' })
+    expect(acts[2]).toMatchObject({ type: 'message', text: 'ยังไม่เปิดใช้งาน' })
+    expect(acts[3]).toMatchObject({ type: 'richmenuswitch', richMenuAliasId: 'tab-m-web', data: 'tab=member-web' })
+    expect(ms.image?.length).toBeGreaterThan(0)
+    expect((await t.app.inject({ method: 'GET', url: '/api/admin/richmenus', headers: adm })).json().data.menus.every((m: { dirty: boolean }) => !m.dirty)).toBe(true)
+
+    const pub2 = await t.app.inject({ method: 'POST', url: '/api/admin/richmenus/publish', headers: adm, payload: { set_default_guest: true } })
+    expect(pub2.json().data.defaultSet).toBe(true)
+    expect(t.line.oa.get(t.line.defaultId!)?.name).toBe('sjhub:guest')
+    expect([...t.line.oa.values()].filter(m => m.name.startsWith('sjhub:')).length).toBe(6) // รันซ้ำไม่มีเมนูซ้ำ
+  })
+
+  it('เผยแพร่ล้มเหลวกลางทาง: ล้างเมนูใหม่ที่สร้างค้าง ไม่ทิ้งขยะใน OA และลองใหม่ได้', async () => {
+    const t = setup(); await seed(t)
+    t.line.failUpload = true
+    const r = await t.app.inject({ method: 'POST', url: '/api/admin/richmenus/publish', headers: adm, payload: {} })
+    expect(r.statusCode).toBe(500)
+    expect([...t.line.oa.values()].filter(m => m.name.startsWith('sjhub:')).length).toBe(0)
+    t.line.failUpload = false
+    expect((await t.app.inject({ method: 'POST', url: '/api/admin/richmenus/publish', headers: adm, payload: {} })).statusCode).toBe(200)
+  })
+
+  it('เฉพาะ superadmin แก้เมนูได้ (admin ธรรมดา 403)', async () => {
+    const t = setup(); await seed(t)
+    await importRoster(t)
+    await onboard(t, 'U2', 'E002', '0899990000')
+    expect((await t.app.inject({ method: 'GET', url: '/api/admin/richmenus', headers: tok('U2') })).statusCode).toBe(403)
+    expect((await t.app.inject({ method: 'POST', url: '/api/admin/richmenus/publish', headers: tok('U2'), payload: {} })).statusCode).toBe(403)
+  })
+
+  it('หน้าแก้เมนู /verify/admin/menu ส่ง HTML', async () => {
+    const t = setup()
+    const p = await t.app.inject({ method: 'GET', url: '/verify/admin/menu' })
+    expect(p.statusCode).toBe(200)
+    expect(p.headers['x-frame-options']).toBe('DENY')
+  })
+})
+
+describe('จัดการรายการระบบ (apps)', () => {
+  const put = (t: T, code: string, payload: Record<string, unknown>, headers: Record<string, string> = adm) =>
+    t.app.inject({ method: 'PUT', url: '/api/admin/apps/' + code, headers, payload })
+
+  it('เพิ่ม/แก้/ปิดใช้งานระบบได้ — ปิดแล้วหายจากการ์ดของผู้ใช้', async () => {
+    const t = setup()
+    expect((await put(t, 'workpath', { name: 'Workpath', type: 'uri', url: 'https://workpath.example/', icon: '✅', sort_order: 1 })).statusCode).toBe(200)
+    expect((await put(t, 'weajer', { name: 'WEA-JER', type: 'liff', liff_id: '2009853780-AbCdEfGh', required_role: 'driver', sort_order: 2 })).statusCode).toBe(200)
+    expect((await t.app.inject({ method: 'GET', url: '/api/admin/apps', headers: adm })).json().data.length).toBe(2)
+    await importRoster(t)
+    await onboard(t, 'U1', 'E001', '0812345678')
+    const mine = async () => ((await t.app.inject({ method: 'GET', url: '/api/me', headers: tok('U1') })).json().data.apps as { code: string }[]).map(a => a.code)
+    expect(await mine()).toEqual(['workpath'])
+    await put(t, 'workpath', { name: 'Workpath', type: 'uri', url: 'https://workpath.example/', active: false })
+    expect(await mine()).toEqual([])
+    const edited = await put(t, 'workpath', { name: 'Workpath 2', type: 'uri', url: 'https://workpath.example/', active: true })
+    expect(edited.json().data.name).toBe('Workpath 2')
+  })
+
+  it('ตรวจข้อมูล: LIFF ต้องมี LIFF ID รูปแบบถูก · ลิงก์ต้อง https · role ต้องอยู่ในรายการ · code ต้องเป็น slug', async () => {
+    const t = setup()
+    expect((await put(t, 'a', { name: 'x', type: 'liff' })).statusCode).toBe(400)
+    expect((await put(t, 'a', { name: 'x', type: 'liff', liff_id: 'abc' })).statusCode).toBe(400)
+    expect((await put(t, 'a', { name: 'x', type: 'uri' })).statusCode).toBe(400)
+    expect((await put(t, 'a', { name: 'x', type: 'uri', url: 'http://insecure.example' })).statusCode).toBe(400)
+    expect((await put(t, 'a', { name: 'x', type: 'uri', url: 'javascript:alert(1)' })).statusCode).toBe(400)
+    expect((await put(t, 'a', { name: 'x', type: 'uri', url: 'https://ok.example', required_role: 'boss' })).statusCode).toBe(400)
+    expect((await put(t, 'Bad_Code', { name: 'x', type: 'uri', url: 'https://ok.example' })).statusCode).toBe(400)
+    expect((await put(t, 'ok-code', { name: 'x', type: 'uri', url: 'https://ok.example' })).statusCode).toBe(200)
+  })
+
+  it('จัดการระบบได้เฉพาะ superadmin (admin ธรรมดา 403)', async () => {
+    const t = setup()
+    await importRoster(t)
+    await onboard(t, 'U2', 'E002', '0899990000')
+    expect((await put(t, 'x', { name: 'x', type: 'uri', url: 'https://ok.example' }, tok('U2'))).statusCode).toBe(403)
   })
 })
 

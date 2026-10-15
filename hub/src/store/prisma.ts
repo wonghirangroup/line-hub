@@ -1,6 +1,6 @@
 // Store บน Prisma + MariaDB (production)
 import { PrismaClient, type Prisma } from '@prisma/client'
-import type { AppEntry, RequestStatus, RoleCode, RosterRow, Store, User, UserRoleEntry, UserStatus, VerificationRequest } from '../types.js'
+import type { MenuArea, RichMenuDef, AppEntry, RequestStatus, RoleCode, RosterRow, Store, User, UserRoleEntry, UserStatus, VerificationRequest } from '../types.js'
 
 type UserRow = Prisma.UserGetPayload<object>
 type ReqRow = Prisma.VerificationRequestGetPayload<object>
@@ -19,6 +19,13 @@ const toReq = (r: ReqRow): VerificationRequest => ({
 const toApp = (r: AppRow): AppEntry => ({
   id: r.id, code: r.code, name: r.name, type: r.type === 'liff' ? 'liff' : 'uri', url: r.url, liffId: r.liff_id,
   icon: r.icon, requiredRole: r.required_role, sortOrder: r.sort_order, active: r.active,
+})
+
+type MenuRow = Prisma.RichMenuGetPayload<{ select: { menu_key: true; width: true; height: true; chat_bar_text: true; areas: true; image_type: true; dirty: true; published_at: true; updated_by: true } }> & { image?: unknown }
+const MENU_SELECT = { menu_key: true, width: true, height: true, chat_bar_text: true, areas: true, image_type: true, dirty: true, published_at: true, updated_by: true } as const
+const toMenu = (r: MenuRow, hasImage: boolean): RichMenuDef => ({
+  key: r.menu_key, width: r.width, height: r.height, chatBarText: r.chat_bar_text, areas: r.areas as unknown as MenuArea[],
+  hasImage, imageType: r.image_type, dirty: r.dirty, publishedAt: r.published_at, updatedBy: r.updated_by,
 })
 
 export class PrismaStore implements Store {
@@ -107,6 +114,32 @@ export class PrismaStore implements Store {
   async recordAttempt(lineUserId: string, success: boolean) { await this.db.verificationAttempt.create({ data: { line_user_id: lineUserId, success } }) }
   async countFailedAttempts(lineUserId: string, since: Date) {
     return this.db.verificationAttempt.count({ where: { line_user_id: lineUserId, success: false, created_at: { gte: since } } })
+  }
+
+  // ภาพไม่ถูกดึงมาตอน list (ใหญ่) — ใช้ image_type ที่ไม่ว่างเป็นตัวบอกว่ามีภาพ
+  async listRichMenus() {
+    const rows = await this.db.richMenu.findMany({ select: MENU_SELECT, orderBy: { menu_key: 'asc' } })
+    return rows.map(r => toMenu(r, !!r.image_type))
+  }
+  async getRichMenu(key: string) {
+    const r = await this.db.richMenu.findUnique({ where: { menu_key: key }, select: MENU_SELECT })
+    return r ? toMenu(r, !!r.image_type) : null
+  }
+  async upsertRichMenu(def: { key: string; width: number; height: number; chatBarText: string; areas: MenuArea[] }, by: string, opts: { clearImage?: boolean } = {}) {
+    const data = { width: def.width, height: def.height, chat_bar_text: def.chatBarText, areas: def.areas as unknown as Prisma.InputJsonValue, dirty: true, updated_by: by }
+    const clear = opts.clearImage ? { image: null, image_type: null } : {}
+    const r = await this.db.richMenu.upsert({ where: { menu_key: def.key }, update: { ...data, ...clear }, create: { menu_key: def.key, ...data }, select: MENU_SELECT })
+    return toMenu(r, !!r.image_type)
+  }
+  async getRichMenuImage(key: string) {
+    const r = await this.db.richMenu.findUnique({ where: { menu_key: key }, select: { image: true, image_type: true } })
+    return r?.image && r.image_type ? { type: r.image_type, data: Buffer.from(r.image) } : null
+  }
+  async setRichMenuImage(key: string, type: string, data: Buffer, by: string) {
+    await this.db.richMenu.update({ where: { menu_key: key }, data: { image: data, image_type: type, dirty: true, updated_by: by } })
+  }
+  async markRichMenusPublished(keys: string[]) {
+    await this.db.richMenu.updateMany({ where: { menu_key: { in: keys } }, data: { dirty: false, published_at: new Date() } })
   }
 
   async listApps() { return (await this.db.app.findMany({ orderBy: { sort_order: 'asc' } })).map(toApp) }

@@ -5,12 +5,15 @@ export interface LineClientOptions {
   accessToken: string
   loginChannelId: string
   apiBase?: string // ใช้ชี้เซิร์ฟเวอร์จำลองตอนเทสต์
+  dataApiBase?: string
 }
 
 export class LineClient implements LineApi {
   private base: string
+  private dataBase: string
   constructor(private o: LineClientOptions) {
     this.base = o.apiBase ?? 'https://api.line.me'
+    this.dataBase = o.dataApiBase ?? 'https://api-data.line.me'
   }
 
   private async call(method: string, pathname: string, opts: { json?: unknown; form?: URLSearchParams; allow404?: boolean } = {}) {
@@ -43,6 +46,29 @@ export class LineClient implements LineApi {
   async linkMenu(lineUserId: string, richMenuId: string) {
     await this.call('POST', `/v2/bot/user/${encodeURIComponent(lineUserId)}/richmenu/${encodeURIComponent(richMenuId)}`)
   }
+  async listMenus() {
+    const r = (await this.call('GET', '/v2/bot/richmenu/list')) as { richmenus?: { richMenuId: string; name: string }[] }
+    return (r.richmenus ?? []).map(m => ({ richMenuId: m.richMenuId, name: m.name }))
+  }
+  async createMenu(body: unknown) {
+    return ((await this.call('POST', '/v2/bot/richmenu', { json: body })) as { richMenuId: string }).richMenuId
+  }
+  async uploadMenuImage(richMenuId: string, data: Buffer, contentType: string) {
+    // ภาพต้องส่งไปที่ api-data.line.me
+    const res = await fetch(`${this.dataBase}/v2/bot/richmenu/${encodeURIComponent(richMenuId)}/content`, {
+      method: 'POST', headers: { Authorization: `Bearer ${this.o.accessToken}`, 'Content-Type': contentType }, body: new Uint8Array(data),
+    })
+    if (!res.ok) throw new Error(`LINE upload image → ${res.status} ${await res.text()}`)
+  }
+  async deleteMenu(richMenuId: string) { await this.call('DELETE', `/v2/bot/richmenu/${encodeURIComponent(richMenuId)}`) }
+  async listAliases() {
+    const r = (await this.call('GET', '/v2/bot/richmenu/alias/list')) as { aliases?: { richMenuAliasId: string; richMenuId: string }[] }
+    return r.aliases ?? []
+  }
+  async createAlias(alias: string, richMenuId: string) { await this.call('POST', '/v2/bot/richmenu/alias', { json: { richMenuAliasId: alias, richMenuId } }) }
+  async deleteAlias(alias: string) { await this.call('DELETE', `/v2/bot/richmenu/alias/${encodeURIComponent(alias)}`) }
+  async setDefaultMenu(richMenuId: string) { await this.call('POST', `/v2/bot/user/all/richmenu/${encodeURIComponent(richMenuId)}`) }
+
   async unlinkMenu(lineUserId: string) {
     await this.call('DELETE', `/v2/bot/user/${encodeURIComponent(lineUserId)}/richmenu`, { allow404: true })
   }
