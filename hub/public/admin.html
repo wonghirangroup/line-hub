@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>จัดการผู้ใช้ LINE Hub</title>
+<style>
+  :root { --navy:#0B1B4D; --blue:#1D6FE0; --ink:#1f2a44; --muted:#5b6b8c; --line:#d8e4f8; --bg:#eef4ff; --ok:#0f9d6b; --warn:#b45309; --err:#c0272d; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Noto Sans Thai','Leelawadee UI',Tahoma,system-ui,sans-serif; background:#f4f8ff; color:var(--ink); padding:14px 12px 60px; }
+  main { max-width:760px; margin:0 auto; }
+  h1 { font-size:1.3rem; color:var(--navy); margin:6px 0 2px; }
+  h2 { font-size:1.05rem; color:var(--navy); margin:0 0 10px; }
+  .who { color:var(--muted); font-size:.85rem; margin-bottom:14px; }
+  .card { background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:14px; margin-bottom:14px; }
+  button { font:inherit; font-weight:700; border:none; border-radius:12px; padding:9px 14px; cursor:pointer; background:var(--blue); color:#fff; }
+  button.alt { background:#eaf2ff; color:var(--blue); }
+  button.danger { background:#fdecec; color:var(--err); }
+  button:disabled { opacity:.5; cursor:default; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline:3px solid #9cc4ff; outline-offset:2px; }
+  input, textarea, select { width:100%; font:inherit; padding:10px 12px; border-radius:12px; border:1.5px solid var(--line); background:#fff; color:var(--ink); }
+  textarea { min-height:96px; font-family:ui-monospace,Consolas,monospace; font-size:.85rem; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .grow { flex:1; min-width:140px; }
+  .user { border-top:1px solid var(--line); padding:10px 0; }
+  .user:first-child { border-top:none; }
+  .name { font-weight:700; }
+  .meta { color:var(--muted); font-size:.82rem; margin:2px 0 8px; }
+  .chip { display:inline-block; font-size:.72rem; font-weight:800; border-radius:99px; padding:2px 9px; margin-right:4px; }
+  .chip.ACTIVE { background:#dff7ec; color:var(--ok); }
+  .chip.INVITED { background:#fff4d6; color:var(--warn); }
+  .chip.INACTIVE { background:#eceff5; color:var(--muted); }
+  .chip.role { background:#eaf2ff; color:var(--blue); }
+  .msg { padding:10px 12px; border-radius:12px; margin-top:10px; font-size:.9rem; line-height:1.5; }
+  .msg.err { background:#fdecec; color:var(--err); }
+  .msg.ok { background:#dff7ec; color:var(--ok); }
+  .modal { position:fixed; inset:0; background:rgba(11,27,77,.55); display:flex; align-items:center; justify-content:center; padding:16px; z-index:10; }
+  .modal .box { background:#fff; border-radius:20px; padding:20px; max-width:380px; width:100%; text-align:center; }
+  .code { font:800 2rem ui-monospace,Consolas,monospace; letter-spacing:.08em; color:var(--navy); background:#eef4ff; border-radius:14px; padding:14px 8px; margin:12px 0; user-select:all; }
+  .roles label { display:inline-flex; align-items:center; gap:4px; margin-right:12px; font-size:.9rem; }
+  .roles input { width:auto; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>จัดการผู้ใช้ LINE Hub</h1>
+  <div class="who" id="who">กำลังตรวจสอบสิทธิ์…</div>
+  <div class="card" id="denied" hidden><h2>เข้าไม่ได้</h2><p id="deniedText">หน้านี้สำหรับ superadmin เท่านั้น</p></div>
+
+  <div id="app" hidden>
+    <div class="card" id="pendingCard" hidden>
+      <h2>คำขอรออนุมัติ</h2>
+      <div id="pending"></div>
+    </div>
+
+    <div class="card">
+      <h2>พนักงาน</h2>
+      <div class="row" style="margin-bottom:10px">
+        <input class="grow" id="search" placeholder="ค้นหาชื่อ / รหัสพนักงาน" aria-label="ค้นหา">
+        <button class="alt" id="issueAll">ออกรหัสให้ทุกคนที่ยังไม่ผูก</button>
+      </div>
+      <div id="users"></div>
+    </div>
+
+    <div class="card">
+      <h2>นำเข้ารายชื่อพนักงาน</h2>
+      <p class="meta">1 บรรทัดต่อคน: <b>รหัสพนักงาน, ชื่อ, เบอร์โทร, บทบาท</b> (บทบาท: staff / driver / admin / superadmin — เว้นว่าง = staff) แล้วกดนำเข้า จากนั้นกด "ออกรหัส"</p>
+      <textarea id="csv" placeholder="68-02-005, สมหญิง ใจดี, 081-234-5678, staff" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:8px"><button id="import">นำเข้า</button></div>
+    </div>
+    <div class="msg" id="msg" hidden role="status"></div>
+  </div>
+</main>
+
+<div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-label="รหัสผ่านเปิดใช้งาน">
+  <div class="box">
+    <div id="modalTitle" style="font-weight:700"></div>
+    <div class="code" id="modalCode"></div>
+    <div class="meta" id="modalMeta"></div>
+    <p class="meta">แสดงครั้งเดียว — ส่งให้พนักงานเป็นการส่วนตัว (ไม่ส่งในกลุ่ม) รหัสใช้ได้ครั้งเดียว</p>
+    <div class="row" style="justify-content:center"><button id="copy">คัดลอกรหัส</button><button class="alt" id="closeModal">ปิด</button></div>
+  </div>
+</div>
+
+<script src="/verify/config.js"></script>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var idToken = '', users = [];
+
+  function el(tag, props, children) {
+    var e = document.createElement(tag);
+    Object.keys(props || {}).forEach(function (k) {
+      if (k === 'text') e.textContent = props[k]; else if (k === 'class') e.className = props[k]; else e.setAttribute(k, props[k]);
+    });
+    (children || []).forEach(function (c) { e.appendChild(c); });
+    return e;
+  }
+  function say(text, ok) { var m = $('msg'); m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err'); m.hidden = false; }
+  function api(method, path, body) {
+    return fetch(path, { method: method, headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, json: j }; }); });
+  }
+  function errText(r) { return (r.json.error && r.json.error.message) || 'เกิดข้อผิดพลาด (' + r.status + ')'; }
+  function fmt(d) { return new Date(d).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }); }
+
+  function showCode(title, code, expires) {
+    $('modalTitle').textContent = title; $('modalCode').textContent = code;
+    $('modalMeta').textContent = 'หมดอายุ ' + fmt(expires);
+    $('modal').hidden = false;
+  }
+  $('closeModal').onclick = function () { $('modal').hidden = true; $('modalCode').textContent = ''; };
+  $('copy').onclick = function () {
+    var t = $('modalCode').textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { $('copy').textContent = 'คัดลอกแล้ว ✓'; }, function () { $('copy').textContent = 'กดค้างที่รหัสเพื่อคัดลอก'; });
+  };
+
+  function renderUsers() {
+    var q = $('search').value.trim().toLowerCase(), box = $('users');
+    box.textContent = '';
+    users.filter(function (u) { return !q || (u.employeeCode + ' ' + u.displayName).toLowerCase().indexOf(q) >= 0; }).forEach(function (u) {
+      var chips = el('div', {}, [el('span', { class: 'chip ' + u.status, text: u.status === 'ACTIVE' ? 'ผูก LINE แล้ว' : u.status === 'INVITED' ? 'รอยืนยัน' : 'ยกเลิกแล้ว' })]);
+      (u.roles || []).forEach(function (r) { chips.appendChild(el('span', { class: 'chip role', text: r.roleCode })); });
+      if (u.hasActivationCode) chips.appendChild(el('span', { class: 'chip INVITED', text: 'มีรหัสที่ยังไม่ใช้' }));
+      var actions = el('div', { class: 'row' });
+      if (u.status !== 'ACTIVE') {
+        var b = el('button', { text: u.hasActivationCode ? 'ออกรหัสใหม่' : 'ออกรหัส' });
+        b.onclick = function () { b.disabled = true; api('POST', '/api/admin/users/' + u.id + '/activation-code', {}).then(function (r) {
+          b.disabled = false;
+          if (r.status === 200) { showCode(u.displayName + ' (' + u.employeeCode + ')', r.json.data.code, r.json.data.expires_at); load(); } else say(errText(r), false);
+        }); };
+        actions.appendChild(b);
+      }
+      var rb = el('button', { class: 'alt', text: 'บทบาท' });
+      rb.onclick = function () { editRoles(u, row); };
+      actions.appendChild(rb);
+      if (u.status === 'ACTIVE') {
+        var ub = el('button', { class: 'danger', text: 'ยกเลิกการผูก (ลาออก)' });
+        ub.onclick = function () {
+          if (!confirm('ยกเลิกการผูก LINE ของ ' + u.displayName + ' ? เมนูพนักงานจะถูกถอดทันที')) return;
+          api('POST', '/api/admin/users/' + u.id + '/unlink').then(function (r) { if (r.status === 200) { say('ยกเลิกการผูกแล้ว', true); load(); } else say(errText(r), false); });
+        };
+        actions.appendChild(ub);
+      }
+      var row = el('div', { class: 'user' }, [el('div', { class: 'name', text: u.displayName }), el('div', { class: 'meta', text: u.employeeCode + ' · ' + u.phone }), chips, el('div', { style: 'height:8px' }), actions]);
+      box.appendChild(row);
+    });
+    if (!box.firstChild) box.appendChild(el('p', { class: 'meta', text: 'ยังไม่มีรายชื่อ — นำเข้าด้านล่าง' }));
+  }
+
+  function editRoles(u, row) {
+    var old = row.querySelector('.roles'); if (old) { old.remove(); return; }
+    var have = (u.roles || []).map(function (r) { return r.roleCode; });
+    var wrap = el('div', { class: 'roles', style: 'margin-top:10px' });
+    ['staff', 'driver', 'admin', 'superadmin'].forEach(function (r) {
+      var cb = el('input', { type: 'checkbox', value: r }); cb.checked = have.indexOf(r) >= 0;
+      wrap.appendChild(el('label', {}, [cb, document.createTextNode(r)]));
+    });
+    var save = el('button', { text: 'บันทึกบทบาท', style: 'margin-top:8px' });
+    save.onclick = function () {
+      var roles = Array.prototype.map.call(wrap.querySelectorAll('input:checked'), function (c) { return c.value; });
+      if (!roles.length) roles = ['guest'];
+      api('PUT', '/api/admin/users/' + u.id + '/roles', { roles: roles }).then(function (r) {
+        if (r.status === 200) { say('บันทึกบทบาทแล้ว' + (r.json.data.menu && r.json.data.menu.ok === false ? ' (แต่ผูกเมนูไม่สำเร็จ: ' + r.json.data.menu.error + ')' : ''), true); load(); } else say(errText(r), false);
+      });
+    };
+    wrap.appendChild(el('div', {}, [save]));
+    row.appendChild(wrap);
+  }
+
+  function renderPending(list) {
+    var box = $('pending'); box.textContent = '';
+    $('pendingCard').hidden = !list.length;
+    list.forEach(function (rq) {
+      var a = el('button', { text: 'อนุมัติ' }), d = el('button', { class: 'danger', text: 'ปฏิเสธ' });
+      function act(kind) { api('POST', '/api/admin/verification-requests/' + rq.id + '/' + kind).then(function (r) { if (r.status === 200) { say(kind === 'approve' ? 'อนุมัติแล้ว' : 'ปฏิเสธแล้ว', true); load(); } else say(errText(r), false); }); }
+      a.onclick = function () { act('approve'); }; d.onclick = function () { act('reject'); };
+      box.appendChild(el('div', { class: 'user' }, [el('div', { class: 'name', text: rq.user.displayName + ' (' + rq.user.employeeCode + ')' }), el('div', { class: 'meta', text: 'บัญชี LINE: ' + (rq.lineDisplayName || '-') + ' · ' + fmt(rq.createdAt) }), el('div', { class: 'row' }, [a, d])]));
+    });
+  }
+
+  function load() {
+    return Promise.all([api('GET', '/api/admin/users'), api('GET', '/api/admin/verification-requests?status=PENDING')]).then(function (rs) {
+      if (rs[0].status === 200) { users = rs[0].json.data; renderUsers(); } else say(errText(rs[0]), false);
+      if (rs[1].status === 200) renderPending(rs[1].json.data);
+    });
+  }
+
+  $('search').addEventListener('input', renderUsers);
+
+  $('import').onclick = function () {
+    var lines = $('csv').value.split('\n').map(function (l) { return l.trim(); }).filter(Boolean), list = [], bad = [];
+    lines.forEach(function (l, i) {
+      var p = l.split(',').map(function (x) { return x.trim(); });
+      if (p.length < 3 || !p[0] || !p[1] || !p[2]) { bad.push(i + 1); return; }
+      var item = { employee_code: p[0], display_name: p[1], phone: p[2] };
+      if (p[3]) item.roles = p[3].split(/[ /|;]+/).filter(Boolean);
+      list.push(item);
+    });
+    if (bad.length) { say('รูปแบบไม่ถูกต้องที่บรรทัด ' + bad.join(', '), false); return; }
+    if (!list.length) { say('ยังไม่ได้กรอกรายชื่อ', false); return; }
+    api('POST', '/api/admin/users/import', { users: list }).then(function (r) {
+      if (r.status === 200) { say('นำเข้าแล้ว: ใหม่ ' + r.json.data.created + ' คน, อัปเดต ' + r.json.data.updated + ' คน', true); $('csv').value = ''; load(); } else say(errText(r), false);
+    });
+  };
+
+  $('issueAll').onclick = function () {
+    if (!confirm('ออกรหัสให้ทุกคนที่ยังไม่ผูก LINE (รหัสเดิมที่ยังไม่ใช้จะถูกแทนที่)\nระบบจะดาวน์โหลดไฟล์รายชื่อพร้อมรหัส — เก็บเป็นความลับ')) return;
+    api('POST', '/api/admin/activation-codes/issue-all', { hours: 72 }).then(function (r) {
+      if (r.status !== 200) { say(errText(r), false); return; }
+      var rows = r.json.data;
+      if (!rows.length) { say('ไม่มีคนที่ต้องออกรหัส', true); return; }
+      var csv = '﻿รหัสพนักงาน,ชื่อ,เบอร์โทร,รหัสผ่าน,หมดอายุ\n' + rows.map(function (x) { return [x.employee_code, x.display_name, x.phone, x.code, x.expires_at].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'activation-codes.csv'; a.click();
+      say('ออกรหัส ' + rows.length + ' คนแล้ว และดาวน์โหลดไฟล์ให้แล้ว (รหัสไม่ถูกเก็บในระบบ ดูซ้ำไม่ได้)', true); load();
+    });
+  };
+
+  if (!window.HUB_CONFIG || !window.HUB_CONFIG.liffId) { $('who').textContent = ''; $('denied').hidden = false; $('deniedText').textContent = 'ระบบยังไม่ได้ตั้งค่า LIFF'; return; }
+  liff.init({ liffId: window.HUB_CONFIG.liffId }).then(function () {
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    idToken = liff.getIDToken();
+    if (!idToken) { $('who').textContent = ''; $('denied').hidden = false; $('deniedText').textContent = 'ไม่ได้รับสิทธิ์จาก LINE กรุณาเปิดจากแอป LINE'; return; }
+    return api('GET', '/api/admin/whoami').then(function (r) {
+      if (r.status !== 200) { $('who').textContent = ''; $('denied').hidden = false; $('deniedText').textContent = r.status === 403 ? 'หน้านี้สำหรับ superadmin เท่านั้น' : errText(r); return; }
+      $('who').textContent = 'เข้าสู่ระบบเป็น ' + r.json.data.actor;
+      $('app').hidden = false; return load();
+    });
+  }).catch(function () { $('who').textContent = ''; $('denied').hidden = false; $('deniedText').textContent = 'เริ่มต้น LINE ไม่สำเร็จ กรุณาเปิดจากแอป LINE'; });
+})();
+</script>
+</body>
+</html>

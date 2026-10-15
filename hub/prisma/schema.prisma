@@ -1,0 +1,124 @@
+// LINE Hub — ตารางกลาง (SPEC.md "โมเดลข้อมูล") + คำขอยืนยันตัวตนและบันทึกการพยายามยืนยัน
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  INVITED   // แอดมินนำเข้ารายชื่อแล้ว ยังไม่ผูก LINE
+  ACTIVE    // ผูก LINE และอนุมัติแล้ว
+  INACTIVE  // ลาออก/ยกเลิกการผูก
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id            String     @id @default(uuid())
+  line_user_id  String?    @unique
+  employee_code String     @unique
+  display_name  String
+  phone         String     // เก็บเฉพาะตัวเลข (normalize แล้ว)
+  status        UserStatus @default(INVITED)
+  linked_at     DateTime?
+  // รหัสผ่านเปิดใช้งานแบบใช้ครั้งเดียว ที่ superadmin สุ่มออกให้ (เก็บเฉพาะแฮช scrypt)
+  activation_hash       String?
+  activation_expires_at DateTime?
+  activation_issued_by  String?
+  activation_failed     Int        @default(0)
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  roles    UserRole[]
+  requests VerificationRequest[]
+  logs     NotificationLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id              String     @id @default(uuid())
+  code            String     @unique // guest | staff | driver | admin | superadmin
+  rich_menu_alias String?
+  users           UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String  @id @default(uuid())
+  user_id   String
+  role_code String
+  app_id    String? // null = ทุกระบบ
+  user      User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role      Role    @relation(fields: [role_code], references: [code])
+
+  @@unique([user_id, role_code, app_id])
+  @@map("user_roles")
+}
+
+model App {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  name          String
+  type          String   // liff | uri
+  url           String?
+  liff_id       String?
+  icon          String?
+  required_role String?  // null = ผู้ใช้ที่ยืนยันแล้วทุกคน · guest = ทุกคน
+  sort_order    Int      @default(0)
+  active        Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  logs NotificationLog[]
+
+  @@map("apps")
+}
+
+model VerificationRequest {
+  id                String        @id @default(uuid())
+  user_id           String
+  line_user_id      String
+  line_display_name String?
+  status            RequestStatus @default(PENDING)
+  decided_by        String?
+  decided_at        DateTime?
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  user              User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([line_user_id])
+  @@map("verification_requests")
+}
+
+model VerificationAttempt {
+  id           String   @id @default(uuid())
+  line_user_id String
+  success      Boolean
+  created_at   DateTime @default(now())
+
+  @@index([line_user_id, created_at])
+  @@map("verification_attempts")
+}
+
+model NotificationLog {
+  id      String   @id @default(uuid())
+  user_id String
+  app_id  String?
+  message String   @db.Text
+  status  String   // SENT | FAILED
+  sent_at DateTime @default(now())
+  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  app     App?     @relation(fields: [app_id], references: [id], onDelete: SetNull)
+
+  @@map("notification_log")
+}

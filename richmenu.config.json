@@ -1,0 +1,63 @@
+{
+  "$comment": "ปุ่ม Rich Menu ทั้งหมดของ LINE Hub — แก้ไฟล์นี้แล้วรัน `npm run richmenu:images` + `npm run richmenu:sync` | ค่า \"TODO\" = ยังไม่มี URL/LIFF ID (ดูรายการด้วย `npm run todo`)",
+  "chatBarText": "เมนู SJ",
+  "size": { "width": 2500, "height": 1686 },
+  "tabBarHeight": 243,
+  "tabs": [
+    { "id": "staff", "label": "พนักงาน", "icon": "👤" },
+    { "id": "admin", "label": "แอดมิน", "icon": "🛡️" },
+    { "id": "web", "label": "เว็บไซต์", "icon": "🌐" }
+  ],
+  "sets": {
+    "member": { "alias": "tab-m", "tabs": ["staff", "web"], "roles": ["staff", "driver"] },
+    "admin": { "alias": "tab-a", "tabs": ["staff", "admin", "web"], "roles": ["admin", "superadmin"] }
+  },
+  "menus": {
+    "staff": {
+      "title": "พนักงาน",
+      "accent": "#1D6FE0",
+      "buttons": [
+        { "id": "staff-checkin", "label": "เช็คอิน", "sub": "Yoonai", "icon": "📍", "color": "#1D6FE0", "type": "liff", "liffId": "2010057364-BtB7eW1f" },
+        { "id": "staff-workpath", "label": "งานของฉัน", "sub": "Workpath", "icon": "✅", "color": "#0F9D6B", "type": "uri", "url": "https://workpath.wonghiran.com/" },
+        { "id": "staff-weajer", "label": "WEA-JER", "sub": "รอบส่งของ · สำรวจร้าน", "icon": "🚚", "color": "#EA6A00", "type": "liff", "liffId": "2009853780-z8zTuIji" },
+        { "id": "staff-leave", "label": "วันลา", "sub": "Yoonai · ขอลา / ปฏิทิน", "icon": "🏖️", "color": "#1D6FE0", "type": "liff", "liffId": "2010057364-BtB7eW1f", "path": "/leave"},
+        { "id": "staff-ecom", "label": "LINE-ECOM", "sub": "วงษ์หิรัญ ร้านค้า", "icon": "🛒", "color": "#DB2777", "type": "liff", "liffId": "2009395213-V9pEB9mI" },
+        { "id": "staff-allapp", "label": "ALL APP", "sub": "ทุกระบบของคุณ", "icon": "🧩", "color": "#0B1B4D", "type": "liff", "liffId": "TODO" }
+      ]
+    },
+    "admin": {
+      "title": "แอดมิน",
+      "accent": "#244B83",
+      "buttons": [
+        { "id": "admin-yoonai", "label": "Yoonai Admin", "sub": "เวลาเข้างาน · พนักงาน", "icon": "🕒", "color": "#1D6FE0", "type": "uri", "url": "https://timeline-admin.vercel.app/" },
+        { "id": "admin-workpath", "label": "Workpath Admin", "sub": "มอบหมาย · ติดตามงาน", "icon": "📋", "color": "#0F9D6B", "type": "uri", "url": "https://workpath.wonghiran.com/" },
+        { "id": "admin-stock", "label": "สต็อกและออเดอร์", "sub": "วงษ์หิรัญ", "icon": "📦", "color": "#DB2777", "type": "uri", "url": "https://line.wonghiran.com/login" },
+        { "id": "admin-media", "label": "สื่อเว็บไซต์", "sub": "วงษ์หิรัญ", "icon": "🖼️", "color": "#7C3AED", "type": "uri", "url": "https://wonghiran.com/admin" },
+        { "id": "admin-weajer", "label": "Weajer Admin", "sub": "คนขับ · ผลสำรวจร้าน", "icon": "🚚", "color": "#EA6A00", "type": "uri", "url": "https://wae-jer.wonghiran.com/admin" },
+        { "id": "admin-pos", "label": "Growstore POS", "sub": "Web app POS", "icon": "💳", "color": "#0891B2", "type": "uri", "url": "https://pos.smartjigsaw.net/" }
+      ]
+    },
+    "web": {
+      "title": "เว็บไซต์",
+      "accent": "#0891B2",
+      "buttons": [
+        { "id": "web-yoonai", "label": "Yoonai", "sub": "ระบบเช็คอิน HR", "icon": "🦉", "color": "#1D6FE0", "type": "uri", "url": "https://yoonai-website-teal.vercel.app/" },
+        { "id": "web-workpath", "label": "Workpath", "sub": "ติดตามงาน", "icon": "✅", "color": "#0F9D6B", "type": "uri", "url": "https://workpath.wonghiran.com/" },
+        { "id": "web-smartjigsaw", "label": "SmartJigsaw", "sub": "เว็บไซต์บริษัท", "icon": "🧩", "color": "#EA6A00", "type": "uri", "url": "https://www.smartjigsaw.net/" },
+        { "id": "web-growstore", "label": "Growstore", "sub": "เว็บไซต์ขาย", "icon": "🌱", "color": "#0891B2", "type": "uri", "url": "https://growstore.smartjigsaw.net/" },
+        { "id": "web-wonghirun", "label": "วงษ์หิรัญ", "sub": "ร้านค้าโกดัง", "icon": "🏬", "color": "#DB2777", "type": "uri", "url": "https://wonghiran.com/" },
+        { "id": "web-allapp", "label": "ALL APP", "sub": "พอร์ทัลกลาง", "icon": "🧩", "color": "#0B1B4D", "type": "liff", "liffId": "TODO" }
+      ]
+    }
+  },
+  "guest": {
+    "title": "ยินดีต้อนรับ",
+    "accent": "#1D6FE0",
+    "size": { "width": 2500, "height": 843 },
+    "buttons": [
+      { "id": "guest-shop", "label": "ร้านค้า", "sub": "วงษ์หิรัญ", "icon": "🛒", "color": "#DB2777", "type": "liff", "liffId": "2009395213-V9pEB9mI" },
+      { "id": "guest-web", "label": "เว็บไซต์", "sub": "SmartJigsaw", "icon": "🌐", "color": "#0891B2", "type": "uri", "url": "https://www.smartjigsaw.net/" },
+      { "id": "guest-verify", "label": "ยืนยันตัวตนพนักงาน", "sub": "สำหรับพนักงานเท่านั้น", "icon": "🔐", "color": "#1D6FE0", "type": "liff", "liffId": "2010195603-pITS478z" }
+    ]
+  }
+}

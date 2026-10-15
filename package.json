@@ -1,0 +1,18 @@
+{
+  "name": "line-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LINE Hub รวมระบบ (SJ-Webapp) — เฟส 1: Rich Menu 3 แท็บ",
+  "type": "module",
+  "engines": { "node": ">=20.12" },
+  "scripts": {
+    "richmenu:images": "node scripts/gen-images.js",
+    "richmenu:sync": "node src/richmenu-sync.js",
+    "richmenu:dry": "node src/richmenu-sync.js --dry-run",
+    "todo": "node scripts/todo.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "devDependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}
