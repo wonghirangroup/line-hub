@@ -67,6 +67,10 @@
           <input class="grow" id="aCode" placeholder="รหัสระบบ (a-z 0-9 -) เช่น workpath" maxlength="59" aria-label="รหัสระบบ">
           <select id="aType" aria-label="ชนิด"><option value="uri">เปิดลิงก์เว็บ</option><option value="liff">เปิดผ่าน LIFF</option></select>
         </div>
+        <div class="row" style="margin-top:8px">
+          <input class="grow" id="aGroup" list="groupList" maxlength="60" placeholder="กลุ่ม/ระบบ เช่น Yoonai, Workpath (เว้นว่าง = อื่นๆ)" aria-label="กลุ่ม/ระบบ">
+          <datalist id="groupList"></datalist>
+        </div>
         <div style="margin-top:8px"><input id="aTarget" placeholder="https://… (ลิงก์) หรือ LIFF ID" aria-label="ปลายทาง"></div>
         <div class="row" style="margin-top:8px">
           <select class="grow" id="aRole" aria-label="ใครเห็น">
@@ -216,26 +220,34 @@
   }
   function renderApps() {
     var box = $('apps'); box.textContent = '';
-    apps.forEach(function (a) {
-      var edit = el('button', { class: 'alt', text: 'แก้ไข' });
-      edit.onclick = function () { openAppForm(a); };
-      var chips = el('div', {}, [
-        el('span', { class: 'chip role', text: a.type === 'liff' ? 'LIFF' : 'ลิงก์' }),
-        el('span', { class: 'chip ' + (a.active ? 'ACTIVE' : 'INACTIVE'), text: a.active ? 'เปิดใช้งาน' : 'ปิดอยู่' }),
-        el('span', { class: 'chip INVITED', text: ROLE_LABEL[a.requiredRole || ''] || a.requiredRole })
-      ]);
-      box.appendChild(el('div', { class: 'user' }, [
-        el('div', { class: 'name', text: (a.icon ? a.icon + ' ' : '') + a.name }),
-        el('div', { class: 'meta', text: a.code + ' · ' + (a.type === 'liff' ? a.liffId : a.url) }),
-        chips, el('div', { style: 'height:8px' }), el('div', { class: 'row' }, [edit])
-      ]));
+    var groups = [], by = {};
+    apps.forEach(function (a) { var g = a.groupName || 'อื่นๆ'; if (!by[g]) { by[g] = []; groups.push(g); } by[g].push(a); });
+    groups.sort(function (x, y) { return (x === 'อื่นๆ') - (y === 'อื่นๆ'); });
+    var dl = $('groupList'); dl.textContent = '';
+    groups.filter(function (g) { return g !== 'อื่นๆ'; }).forEach(function (g) { dl.appendChild(el('option', { value: g })); });
+    groups.forEach(function (g) {
+      box.appendChild(el('div', { class: 'lbl', style: 'margin-top:12px;font-size:.82rem;color:var(--navy);font-weight:800', text: '📁 ' + g + ' (' + by[g].length + ')' }));
+      by[g].forEach(function (a) {
+        var edit = el('button', { class: 'alt', text: 'แก้ไข' });
+        edit.onclick = function () { openAppForm(a); };
+        var chips = el('div', {}, [
+          el('span', { class: 'chip role', text: a.type === 'liff' ? 'LIFF' : 'ลิงก์' }),
+          el('span', { class: 'chip ' + (a.active ? 'ACTIVE' : 'INACTIVE'), text: a.active ? 'เปิดใช้งาน' : 'ปิดอยู่' }),
+          el('span', { class: 'chip INVITED', text: ROLE_LABEL[a.requiredRole || ''] || a.requiredRole })
+        ]);
+        box.appendChild(el('div', { class: 'user' }, [
+          el('div', { class: 'name', text: (a.icon ? a.icon + ' ' : '') + a.name }),
+          el('div', { class: 'meta', text: a.code + ' · ' + (a.type === 'liff' ? a.liffId : a.url) + ' · ลำดับ ' + a.sortOrder }),
+          chips, el('div', { style: 'height:8px' }), el('div', { class: 'row' }, [edit])
+        ]));
+      });
     });
     if (!apps.length) box.appendChild(el('p', { class: 'meta', text: 'ยังไม่มีระบบ — กด "เพิ่มระบบ"' }));
   }
   function openAppForm(a) {
     var f = $('appForm'); f.hidden = false; f.dataset.editing = a ? '1' : '';
     $('aName').value = a ? a.name : ''; $('aIcon').value = a ? (a.icon || '') : '';
-    $('aCode').value = a ? a.code : ''; $('aCode').disabled = !!a;
+    $('aCode').value = a ? a.code : ''; $('aCode').disabled = !!a; $('aGroup').value = a ? (a.groupName || '') : '';
     $('aType').value = a ? a.type : 'uri'; $('aTarget').value = a ? (a.type === 'liff' ? a.liffId : a.url) || '' : '';
     $('aRole').value = a ? (a.requiredRole || '') : ''; $('aSort').value = a ? a.sortOrder : 10; $('aActive').checked = a ? a.active : true;
     f.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -246,7 +258,7 @@
     e.preventDefault();
     var type = $('aType').value, target = $('aTarget').value.trim(), code = $('aCode').value.trim().toLowerCase();
     if (!$('aName').value.trim() || !code || !target) { say('กรอกชื่อ รหัสระบบ และปลายทางให้ครบ', false); return; }
-    var body = { name: $('aName').value.trim(), type: type, icon: $('aIcon').value.trim() || null, required_role: $('aRole').value || null, sort_order: Number($('aSort').value) || 0, active: $('aActive').checked };
+    var body = { name: $('aName').value.trim(), type: type, icon: $('aIcon').value.trim() || null, required_role: $('aRole').value || null, group: $('aGroup').value.trim() || null, sort_order: Number($('aSort').value) || 0, active: $('aActive').checked };
     if (type === 'liff') body.liff_id = target; else body.url = target;
     api('PUT', '/api/admin/apps/' + encodeURIComponent(code), body).then(function (r) {
       if (r.status === 200) { say('บันทึกระบบแล้ว', true); $('appForm').hidden = true; loadApps(); } else say(errText(r), false);

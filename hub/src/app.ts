@@ -262,6 +262,7 @@ export function buildApp(d: AppDeps): FastifyInstance {
         icon: z.string().max(20).nullable().optional(),
         // null = ผู้ใช้ที่ยืนยันตัวตนแล้วทุกคน · guest = ทุกคนรวมคนที่ยังไม่ยืนยัน
         required_role: z.enum(['guest', 'staff', 'driver', 'admin', 'superadmin']).nullable().optional(),
+        group: z.string().trim().max(60).nullable().optional(), // กลุ่ม/ระบบ เช่น Yoonai
         sort_order: z.number().int().min(0).max(9999).default(0),
         active: z.boolean().default(true),
       }).superRefine((v, ctx) => {
@@ -269,7 +270,7 @@ export function buildApp(d: AppDeps): FastifyInstance {
         if (v.type === 'uri' && !v.url) ctx.addIssue({ code: 'custom', path: ['url'], message: 'ระบบแบบลิงก์ต้องมี URL' })
       }).parse(req.body)
       await d.service.audit(adminName(req), 'app.save', code, { name: b.name, active: b.active, role: b.required_role ?? null })
-      return ok(await d.store.upsertApp({ code, name: b.name, type: b.type, url: b.type === 'uri' ? (b.url ?? null) : null, liffId: b.type === 'liff' ? (b.liff_id ?? null) : null, icon: b.icon ?? null, requiredRole: b.required_role ?? null, sortOrder: b.sort_order, active: b.active }))
+      return ok(await d.store.upsertApp({ code, name: b.name, type: b.type, url: b.type === 'uri' ? (b.url ?? null) : null, liffId: b.type === 'liff' ? (b.liff_id ?? null) : null, icon: b.icon ?? null, requiredRole: b.required_role ?? null, groupName: b.group || null, sortOrder: b.sort_order, active: b.active }))
     })
 
     // ── ตัวแก้ Rich Menu ──

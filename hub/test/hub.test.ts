@@ -439,7 +439,7 @@ describe('/me และรายการระบบ', () => {
   })
 
   it('สิทธิ์เฉพาะระบบ: admin ของแอปหนึ่งไม่เห็นหลังบ้านของแอปอื่น', () => {
-    const app = (id: string) => ({ id, code: id, name: id, type: 'uri' as const, url: null, liffId: null, icon: null, requiredRole: 'admin', sortOrder: 0, active: true })
+    const app = (id: string) => ({ id, code: id, name: id, type: 'uri' as const, url: null, liffId: null, icon: null, requiredRole: 'admin', groupName: null, sortOrder: 0, active: true })
     const roles = [{ roleCode: 'admin' as const, appId: 'a1' }]
     expect(canAccess(app('a1'), roles)).toBe(true)
     expect(canAccess(app('a2'), roles)).toBe(false)
@@ -738,6 +738,22 @@ describe('จัดการรายการระบบ (apps)', () => {
     expect(await mine()).toEqual([])
     const edited = await put(t, 'workpath', { name: 'Workpath 2', type: 'uri', url: 'https://workpath.example/', active: true })
     expect(edited.json().data.name).toBe('Workpath 2')
+  })
+
+  it('จัดกลุ่มระบบ: บันทึกกลุ่ม แล้ว /api/me ส่งกลุ่มและสิทธิ์ให้หน้า ALL APP จัดหมวด', async () => {
+    const t = setup()
+    await put(t, 'yoonai-checkin', { name: 'เช็คอิน', type: 'liff', liff_id: '2010057364-BtB7eW1f', group: 'Yoonai', sort_order: 10 })
+    await put(t, 'yoonai-admin', { name: 'Yoonai Admin', type: 'uri', url: 'https://admin.example/', required_role: 'admin', group: ' Yoonai ', sort_order: 11 })
+    await put(t, 'workpath', { name: 'Workpath', type: 'uri', url: 'https://workpath.example/', group: 'Workpath', sort_order: 20 })
+    await put(t, 'misc', { name: 'อื่นๆ', type: 'uri', url: 'https://misc.example/', group: '', sort_order: 99 })
+    const list = (await t.app.inject({ method: 'GET', url: '/api/admin/apps', headers: adm })).json().data as { code: string; groupName: string | null }[]
+    expect(list.find(a => a.code === 'yoonai-admin')?.groupName).toBe('Yoonai')   // ตัดช่องว่าง
+    expect(list.find(a => a.code === 'misc')?.groupName).toBeNull()                // ว่าง = ไม่มีกลุ่ม
+    await importRoster(t)
+    await onboard(t, 'U1', 'E001', '0812345678')
+    const me = (await t.app.inject({ method: 'GET', url: '/api/me', headers: tok('U1') })).json().data.apps as { code: string; group: string | null; requiredRole: string | null }[]
+    expect(me.map(a => [a.code, a.group])).toEqual([['yoonai-checkin', 'Yoonai'], ['workpath', 'Workpath'], ['misc', null]]) // staff ไม่เห็นหลังบ้าน
+    expect((await put(t, 'x', { name: 'x', type: 'uri', url: 'https://ok.example', group: 'ก'.repeat(61) })).statusCode).toBe(400)
   })
 
   it('ตรวจข้อมูล: LIFF ต้องมี LIFF ID รูปแบบถูก · ลิงก์ต้อง https · role ต้องอยู่ในรายการ · code ต้องเป็น slug', async () => {

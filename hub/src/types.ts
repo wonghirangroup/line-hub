@@ -32,6 +32,7 @@ export interface AppEntry {
   liffId: string | null
   icon: string | null
   requiredRole: string | null
+  groupName: string | null
   sortOrder: number
   active: boolean
 }

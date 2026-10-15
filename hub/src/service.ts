@@ -270,4 +270,4 @@ export class HubService {
   }
 }
 
-const publicApp = (a: AppEntry) => ({ code: a.code, name: a.name, type: a.type, url: a.url, liffId: a.liffId, icon: a.icon })
+const publicApp = (a: AppEntry) => ({ code: a.code, name: a.name, type: a.type, url: a.url, liffId: a.liffId, icon: a.icon, group: a.groupName, requiredRole: a.requiredRole })

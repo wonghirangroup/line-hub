@@ -18,7 +18,7 @@ const toReq = (r: ReqRow): VerificationRequest => ({
 })
 const toApp = (r: AppRow): AppEntry => ({
   id: r.id, code: r.code, name: r.name, type: r.type === 'liff' ? 'liff' : 'uri', url: r.url, liffId: r.liff_id,
-  icon: r.icon, requiredRole: r.required_role, sortOrder: r.sort_order, active: r.active,
+  icon: r.icon, requiredRole: r.required_role, groupName: r.group_name, sortOrder: r.sort_order, active: r.active,
 })
 
 type MenuRow = Prisma.RichMenuGetPayload<{ select: { menu_key: true; width: true; height: true; chat_bar_text: true; areas: true; image_type: true; dirty: true; published_at: true; updated_by: true } }> & { image?: unknown }
@@ -156,7 +156,7 @@ export class PrismaStore implements Store {
 
   async listApps() { return (await this.db.app.findMany({ orderBy: { sort_order: 'asc' } })).map(toApp) }
   async upsertApp(app: Omit<AppEntry, 'id'>) {
-    const data = { name: app.name, type: app.type, url: app.url, liff_id: app.liffId, icon: app.icon, required_role: app.requiredRole, sort_order: app.sortOrder, active: app.active }
+    const data = { name: app.name, type: app.type, url: app.url, liff_id: app.liffId, icon: app.icon, required_role: app.requiredRole, group_name: app.groupName, sort_order: app.sortOrder, active: app.active }
     return toApp(await this.db.app.upsert({ where: { code: app.code }, update: data, create: { code: app.code, ...data } }))
   }
 }

@@ -44,11 +44,7 @@ body { padding:0 0 calc(30px + env(safe-area-inset-bottom)); }
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var apps = [], idToken = '';
-  // จัดกลุ่มตามสิทธิ์ที่เห็น — เรียงจากของทุกคน → ของพนักงาน → หลังบ้าน
-  var GROUPS = [
-    ['guest', 'สำหรับทุกคน'], ['', 'ของฉัน (พนักงาน)'], ['staff', 'ของฉัน (พนักงาน)'], ['driver', 'คนขับ'], ['admin', 'ผู้ดูแลระบบ (หลังบ้าน)'], ['superadmin', 'superadmin']
-  ];
-
+  var OTHER = 'อื่นๆ';
   function el(tag, props, kids) {
     var e = document.createElement(tag);
     Object.keys(props || {}).forEach(function (k) { if (k === 'text') e.textContent = props[k]; else if (k === 'class') e.className = props[k]; else e.setAttribute(k, props[k]); });
@@ -56,26 +52,34 @@ body { padding:0 0 calc(30px + env(safe-area-inset-bottom)); }
     return e;
   }
   function href(a) { return a.type === 'liff' ? 'https://liff.line.me/' + a.liffId : a.url; }
-  function groupKey(a) { return a.requiredRole === 'staff' ? '' : (a.requiredRole || ''); }
+  function kind(a) {
+    var back = a.requiredRole === 'admin' || a.requiredRole === 'superadmin';
+    return (back ? 'หลังบ้าน · ' : '') + (a.type === 'liff' ? 'เปิดใน LINE' : 'เว็บไซต์');
+  }
 
+  // จัดหมวดตามระบบ (กลุ่ม) — ลำดับกลุ่มและลำดับในกลุ่มตามที่ superadmin ตั้งไว้ (sort_order)
   function render() {
     var q = $('q').value.trim().toLowerCase(), box = $('groups'); box.textContent = '';
-    var shown = 0, seen = {};
-    GROUPS.forEach(function (g) {
-      var title = g[1]; if (seen[title]) return;
-      var list = apps.filter(function (a) { var k = groupKey(a), t = (GROUPS.filter(function (x) { return x[0] === k; })[0] || [])[1]; return t === title && (!q || (a.name + ' ' + (a.icon || '')).toLowerCase().indexOf(q) >= 0); });
-      seen[title] = true;
-      if (!list.length) return;
-      box.appendChild(el('h2', { text: title }));
+    var order = [], byGroup = {};
+    apps.forEach(function (a) {
+      if (q && (a.name + ' ' + (a.group || '') + ' ' + (a.icon || '')).toLowerCase().indexOf(q) < 0) return;
+      var g = a.group || OTHER;
+      if (!byGroup[g]) { byGroup[g] = []; order.push(g); }
+      byGroup[g].push(a);
+    });
+    // กลุ่ม "อื่นๆ" ไว้ท้ายสุดเสมอ
+    order.sort(function (x, y) { return (x === OTHER) - (y === OTHER); });
+    order.forEach(function (g) {
+      box.appendChild(el('h2', { text: g + ' · ' + byGroup[g].length }));
       var grid = el('div', { class: 'grid' });
-      list.forEach(function (a) {
-        var link = el('a', { class: 'card', href: href(a), rel: 'noopener' }, [el('span', { class: 'ic', text: a.icon || '🔗' }), el('span', { class: 'nm', text: a.name }), el('span', { class: 'tp', text: a.type === 'liff' ? 'เปิดใน LINE' : 'เว็บไซต์' })]);
+      byGroup[g].forEach(function (a) {
+        var link = el('a', { class: 'card', href: href(a), rel: 'noopener' }, [el('span', { class: 'ic', text: a.icon || '🔗' }), el('span', { class: 'nm', text: a.name }), el('span', { class: 'tp', text: kind(a) })]);
         if (a.type !== 'liff') link.setAttribute('target', '_blank');
-        grid.appendChild(link); shown++;
+        grid.appendChild(link);
       });
       box.appendChild(grid);
     });
-    $('empty').hidden = shown > 0 || !apps.length;
+    $('empty').hidden = order.length > 0 || !apps.length;
   }
 
   function fail(t) { $('state').textContent = t; $('state').hidden = false; }

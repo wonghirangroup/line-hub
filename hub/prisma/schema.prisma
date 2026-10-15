@@ -73,6 +73,7 @@ model App {
   liff_id       String?
   icon          String?
   required_role String?  // null = ผู้ใช้ที่ยืนยันแล้วทุกคน · guest = ทุกคน
+  group_name    String?  // กลุ่ม/ระบบ ที่การ์ดนี้อยู่ใน ALL APP เช่น Yoonai, Workpath
   sort_order    Int      @default(0)
   active        Boolean  @default(true)
   created_at    DateTime @default(now())
